@@ -15,7 +15,7 @@ namespace Barotrauma.LuaCs.Data;
 
 #region ModConfigurationInfo
 
-public record ModConfigInfo : IModConfigInfo
+public partial record ModConfigInfo : IModConfigInfo
 {
     public ContentPackage Package { get; init; }
     public ImmutableArray<IAssemblyResourceInfo> Assemblies { get; init; }

@@ -23,12 +23,18 @@ public sealed class ModConfigService : IModConfigService
     private IParserServiceAsync<ResourceParserInfo, IAssemblyResourceInfo> _assemblyParserService;
     private IParserServiceAsync<ResourceParserInfo, ILuaScriptResourceInfo>  _luaScriptParserService;
     private IParserServiceAsync<ResourceParserInfo, IConfigResourceInfo>  _configParserService;
+#if CLIENT
+    private IParserServiceAsync<ResourceParserInfo, IStylesResourceInfo>  _stylesParserService;
+#endif
     private readonly AsyncReaderWriterLock _operationsLock = new();
     
     public ModConfigService(IStorageService storageService, 
         IParserServiceAsync<ResourceParserInfo, IAssemblyResourceInfo> assemblyParserService, 
         IParserServiceAsync<ResourceParserInfo, ILuaScriptResourceInfo> luaScriptParserService, 
-        IParserServiceAsync<ResourceParserInfo, IConfigResourceInfo> configParserService, 
+        IParserServiceAsync<ResourceParserInfo, IConfigResourceInfo> configParserService,
+#if CLIENT
+        IParserServiceAsync<ResourceParserInfo, IStylesResourceInfo> stylesParserService,
+#endif
         ILoggerService logger)
     {
         _storageService = storageService;
@@ -36,6 +42,9 @@ public sealed class ModConfigService : IModConfigService
         _luaScriptParserService = luaScriptParserService;
         _configParserService = configParserService;
         _logger = logger;
+#if CLIENT
+        _stylesParserService = stylesParserService;
+#endif
     } 
     
     #region Dispose
@@ -59,6 +68,11 @@ public sealed class ModConfigService : IModConfigService
             _assemblyParserService = null;
             _luaScriptParserService = null;
             _configParserService = null;
+
+#if CLIENT
+            _stylesParserService.Dispose();
+            _stylesParserService = null;
+#endif
         }
         catch
         {
@@ -130,14 +144,26 @@ public sealed class ModConfigService : IModConfigService
         var asmTask = Task.Factory.StartNew(async () => await GetAssembliesFromXml(owner, src));
         var cfgTask = Task.Factory.StartNew(async () => await GetConfigsFromXml(owner, src));
         var luaTask = Task.Factory.StartNew(async () => await GetLuaScriptsFromXml(owner, src));
+#if CLIENT
+        var styleTask = Task.Factory.StartNew(async () => await GetStylesFromXml(owner, src));
+#endif
         
-        await Task.WhenAll(asmTask, cfgTask, luaTask);
+        await Task.WhenAll(
+            asmTask, 
+            cfgTask,
+#if CLIENT
+            styleTask,
+#endif
+            luaTask);
 
         return FluentResults.Result.Ok<IModConfigInfo>(new ModConfigInfo()
         {
             Package = owner,
             Assemblies = await await asmTask,
             Configs = await await cfgTask,
+#if CLIENT
+            Styles = await await styleTask,
+#endif
             LuaScripts = await await luaTask
         });
 
@@ -151,7 +177,6 @@ public sealed class ModConfigService : IModConfigService
             XElement cfgElement)
         {
             return await GetResourceFromXml<IConfigResourceInfo>(contentPackage, cfgElement, "Config", "FileGroup", _configParserService);
-
         }
 
         async Task<ImmutableArray<IAssemblyResourceInfo>> GetAssembliesFromXml(ContentPackage contentPackage, 
@@ -159,6 +184,14 @@ public sealed class ModConfigService : IModConfigService
         {
             return await GetResourceFromXml<IAssemblyResourceInfo>(contentPackage, cfgElement, "Assembly", "FileGroup", _assemblyParserService);
         }
+
+#if CLIENT
+        async Task<ImmutableArray<IStylesResourceInfo>> GetStylesFromXml(ContentPackage contentPackage, 
+            XElement cfgElement)
+        {
+            return await GetResourceFromXml<IStylesResourceInfo>(contentPackage, cfgElement, "Style", "FileGroup", _stylesParserService);
+        }
+#endif
         
         async Task<ImmutableArray<T>> GetResourceFromXml<T>(ContentPackage contentPackage, XElement cfgElement, string elemName, string fileGroupName, IParserServiceAsync<ResourceParserInfo, T> resourceService)
         {

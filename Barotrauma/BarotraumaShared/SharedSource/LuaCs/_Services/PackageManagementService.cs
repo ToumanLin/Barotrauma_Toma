@@ -20,6 +20,9 @@ public sealed class PackageManagementService : IPackageManagementService
     private IConfigService _configService;
     private ILuaScriptManagementService _luaScriptManagementService;
     private IPluginManagementService _pluginManagementService;
+#if CLIENT
+    private IUIStylesService _uiStylesService;
+#endif
     private IPackageManagementServiceConfig _runConfig;
     // state
     private readonly ConcurrentDictionary<ContentPackage, IModConfigInfo> _loadedPackages = new();
@@ -40,7 +43,11 @@ public sealed class PackageManagementService : IPackageManagementService
         IModConfigService modConfigService, 
         ILuaScriptManagementService luaScriptManagementService, 
         IPluginManagementService pluginManagementService, 
-        IConfigService configService, IPackageManagementServiceConfig runConfig)
+        IConfigService configService,
+#if CLIENT
+        IUIStylesService uiStylesService,
+#endif
+        IPackageManagementServiceConfig runConfig)
     {
         _logger = logger;
         _modConfigService = modConfigService;
@@ -48,6 +55,9 @@ public sealed class PackageManagementService : IPackageManagementService
         _pluginManagementService = pluginManagementService;
         _configService = configService;
         _runConfig = runConfig;
+#if CLIENT
+        _uiStylesService = uiStylesService;
+#endif
     }
     
     public void Dispose()
@@ -61,11 +71,19 @@ public sealed class PackageManagementService : IPackageManagementService
         _pluginManagementService.Dispose();
         _modConfigService.Dispose();
         _logger.Dispose();
+#if CLIENT
+        _uiStylesService.Dispose();
+#endif
 
         _logger = null;
         _luaScriptManagementService = null;
         _pluginManagementService = null;
         _modConfigService = null;
+#if CLIENT
+        _uiStylesService = null;
+#endif
+        
+        
         _loadedPackages.Clear();
         _runningPackages.Clear();
     }
@@ -86,9 +104,13 @@ public sealed class PackageManagementService : IPackageManagementService
         try
         {
             var operationResult = new FluentResults.Result();
-            operationResult.WithReasons(_configService.Reset().Reasons);
+            
             operationResult.WithReasons(_luaScriptManagementService.Reset().Reasons);
             operationResult.WithReasons(_pluginManagementService.Reset().Reasons);
+            operationResult.WithReasons(_configService.Reset().Reasons);
+#if CLIENT
+            operationResult.WithReasons(_uiStylesService.Reset().Reasons);
+#endif
             _runningPackages.Clear();
             _loadedPackages.Clear();
             return operationResult;
@@ -205,11 +227,19 @@ public sealed class PackageManagementService : IPackageManagementService
             {
                 return FluentResults.Result.Ok();
             }
-            
+
+#if CLIENT
+            if (!config.Styles.IsDefaultOrEmpty)
+            {
+                res.WithReasons(_uiStylesService.LoadAssets(config.Styles).Reasons);          
+            }
+#endif
             var r = Task.WhenAll(tasks.ToArray()).ConfigureAwait(false).GetAwaiter().GetResult();
 
             foreach (var task in r)
+            {
                 res.WithReasons(task.ConfigureAwait(false).GetAwaiter().GetResult().Reasons);
+            }
             return res;
         }
         catch (Exception e)
@@ -363,12 +393,19 @@ public sealed class PackageManagementService : IPackageManagementService
         IService.CheckDisposed(this);
         
         if (!_loadedPackages.ContainsKey(package))
+        {
             return FluentResults.Result.Fail($"{nameof(UnloadPackage)}: The package is not loaded.");
+        }
         if (!_runningPackages.IsEmpty)
+        {
             return FluentResults.Result.Fail($"{nameof(UnloadPackage)}: Packages are currently executing.");
+        }
         var result = new  FluentResults.Result();
         result.WithReasons(_luaScriptManagementService.DisposePackageResources(package).Reasons);
         result.WithReasons(_configService.DisposePackageData(package).Reasons);
+#if CLIENT
+        result.WithReasons(_uiStylesService.UnloadPackage(package).Reasons);  
+#endif
         _loadedPackages.TryRemove(package, out _);
         return result;
     }
@@ -384,7 +421,9 @@ public sealed class PackageManagementService : IPackageManagementService
         
         var result =  new FluentResults.Result();
         foreach (var package in packages)
+        {
             result.WithReasons(UnloadPackage(package).Reasons);
+        }
         return result;
     }
 

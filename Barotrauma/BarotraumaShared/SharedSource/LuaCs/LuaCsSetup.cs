@@ -209,6 +209,10 @@ namespace Barotrauma
             servicesProvider.RegisterServiceType<IConfigServiceConfig, ConfigServiceConfig>(ServiceLifetime.Singleton);
             servicesProvider.RegisterServiceType<IPackageManagementServiceConfig, PackageManagementServiceConfig>(ServiceLifetime.Singleton);
 
+#if CLIENT
+            SetupServicesProviderClient(servicesProvider);
+#endif
+            
             // gen IL
             servicesProvider.CompileAndRun();
             return servicesProvider;

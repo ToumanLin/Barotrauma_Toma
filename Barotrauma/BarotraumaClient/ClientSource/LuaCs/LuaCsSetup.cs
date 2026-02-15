@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using Barotrauma.CharacterEditor;
 using Barotrauma.LuaCs;
+using Barotrauma.LuaCs.Data;
 
 // ReSharper disable ObjectCreationAsStatement
 
@@ -64,6 +65,15 @@ namespace Barotrauma
             };
 
             return isCsValueChanged;
+        }
+
+        private void SetupServicesProviderClient(IServicesProvider serviceProvider)
+        {
+            serviceProvider.RegisterServiceType<IUIStylesService, UIStylesService>(ServiceLifetime.Singleton);
+            // supplied via factory
+            //serviceProvider.RegisterServiceType<IUIStylesCollection, UIStylesCollection>(ServiceLifetime.Transient);
+            serviceProvider.RegisterServiceType<IParserServiceAsync<ResourceParserInfo, IStylesResourceInfo>, ModConfigFileParserService>(ServiceLifetime.Transient);
+            serviceProvider.RegisterServiceType<IUIStylesCollection.IFactory, UIStylesCollection.Factory>(ServiceLifetime.Transient);
         }
 
         /// <summary>

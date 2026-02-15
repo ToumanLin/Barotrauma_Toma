@@ -10,7 +10,7 @@ using Microsoft.Toolkit.Diagnostics;
 
 namespace Barotrauma.LuaCs;
 
-public sealed class ModConfigFileParserService : 
+public sealed partial class ModConfigFileParserService : 
     IParserServiceAsync<ResourceParserInfo, IAssemblyResourceInfo>, 
     IParserServiceAsync<ResourceParserInfo, ILuaScriptResourceInfo>, 
     IParserServiceAsync<ResourceParserInfo, IConfigResourceInfo>
