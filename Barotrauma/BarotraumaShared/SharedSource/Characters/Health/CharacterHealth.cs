@@ -1,17 +1,19 @@
 ﻿using Barotrauma.Abilities;
+using Barotrauma.Abilities;
 using Barotrauma.Extensions;
+using Barotrauma.Extensions;
+using Barotrauma.LuaCs.Events;
+using Barotrauma.Networking;
 using Barotrauma.Networking;
 using Microsoft.Xna.Framework;
+using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
-using Barotrauma.Networking;
-using Barotrauma.Extensions;
-using System.Globalization;
-using MoonSharp.Interpreter;
-using Barotrauma.Abilities;
+using static OneOf.Types.TrueFalseOrNull;
 
 namespace Barotrauma
 {
@@ -655,7 +657,8 @@ namespace Barotrauma
                 return;
             }
 
-            var should = GameMain.LuaCs.Hook.Call<bool?>("character.applyDamage", this, attackResult, hitLimb, allowStacking);
+            bool? should = null;
+            GameMain.LuaCs.EventService.PublishEvent<IEventCharacterApplyDamage>(x => should = x.OnCharacterApplyDamage(this, attackResult, hitLimb, allowStacking) ?? should);
             if (should != null && should.Value) { return; }
             
             foreach (Affliction newAffliction in attackResult.Afflictions)
@@ -826,10 +829,9 @@ namespace Barotrauma
             if (newAffliction.Prefab.TargetSpecies.Any() && newAffliction.Prefab.TargetSpecies.None(s => s == Character.SpeciesName)) { return; }
             if (Character.Params.Health.ImmunityIdentifiers.Contains(newAffliction.Identifier)) { return; }
 
-            var should = GameMain.LuaCs.Hook.Call<bool?>("character.applyAffliction", this, limbHealth, newAffliction, allowStacking);
-
-            if (should != null && should.Value)
-                return;
+            bool? should = null;
+            GameMain.LuaCs.EventService.PublishEvent<IEventCharacterApplyAffliction>(x => should = x.OnCharacterApplyAffliction(this, limbHealth, newAffliction, allowStacking) ?? should);
+            if (should != null && should.Value) { return; }
 
             Affliction existingAffliction = null;
             foreach ((Affliction affliction, LimbHealth value) in afflictions)

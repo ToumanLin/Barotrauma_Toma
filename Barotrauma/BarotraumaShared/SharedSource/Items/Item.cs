@@ -1,20 +1,23 @@
-﻿using Barotrauma.Items.Components;
+﻿using Barotrauma.Abilities;
+using Barotrauma.Extensions;
+using Barotrauma.Items.Components;
+using Barotrauma.LuaCs.Events;
+using Barotrauma.MapCreatures.Behavior;
 using Barotrauma.Networking;
 using FarseerPhysics;
 using FarseerPhysics.Dynamics;
 using FarseerPhysics.Dynamics.Contacts;
 using Microsoft.Xna.Framework;
+using MoonSharp.Interpreter;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
-using Barotrauma.Extensions;
-using Barotrauma.MapCreatures.Behavior;
-using MoonSharp.Interpreter;
-using System.Collections.Immutable;
-using Barotrauma.Abilities;
+using static Barotrauma.CharacterHealth;
+using static Barotrauma.MedicalClinic;
 
 #if CLIENT
 using Microsoft.Xna.Framework.Graphics;
@@ -3891,9 +3894,9 @@ namespace Barotrauma
                 }
             }
 
-            var result = GameMain.LuaCs.Hook.Call<bool?>("item.readPropertyChange", this, property, parentObject, allowEditing, sender);
-            if (result != null && result.Value)
-                return;
+            bool? should = null;
+            GameMain.LuaCs.EventService.PublishEvent<IEventItemReadPropertyChange>(x => should = x.OnItemReadPropertyChange(this, property, parentObject, allowEditing, sender) ?? should);
+            if (should != null && should.Value) { return; }
 
             Type type = property.PropertyType;
             string logValue = "";

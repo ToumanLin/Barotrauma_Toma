@@ -1,6 +1,8 @@
-﻿using System;
-using System.Text;
+﻿using Barotrauma.LuaCs.Events;
 using MoonSharp.Interpreter;
+using MoonSharp.VsCodeDebugger.SDK;
+using System;
+using System.Text;
 
 namespace Barotrauma.Networking
 {
@@ -86,12 +88,9 @@ namespace Barotrauma.Networking
             HandleSpamFilter(c, txt, out bool flaggedAsSpam, similarityMultiplier);
             if (flaggedAsSpam) { return; }
 
-            var should = GameMain.LuaCs.Hook.Call<bool?>("chatMessage", txt, c, type);
-
-            if (should != null && should.Value)
-            {
-                return;
-            }
+            bool? should = null;
+            GameMain.LuaCs.EventService.PublishEvent<IEventChatMessage>(x => should = x.OnChatMessage(txt, c, type, ChatMessage.Create(c.Name, txt, type, null, c)) ?? should);
+            if (should != null && should.Value) { return; }
 
             if (type == ChatMessageType.Order)
             {

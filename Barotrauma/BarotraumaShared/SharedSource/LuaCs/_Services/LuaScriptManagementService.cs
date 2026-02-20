@@ -179,6 +179,25 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
         _eventService.RegisterLuaEventAlias<IEventCharacterDeath>("character.death", nameof(IEventCharacterDeath.OnCharacterDeath));
         _eventService.RegisterLuaEventAlias<IEventCharacterDamageLimb>("character.damageLimb", nameof(IEventCharacterDamageLimb.OnCharacterDamageLimb));
         _eventService.RegisterLuaEventAlias<IEventGiveCharacterJobItems>("character.giveJobItems", nameof(IEventGiveCharacterJobItems.OnGiveCharacterJobItems));
+        _eventService.RegisterLuaEventAlias<IEventHumanCPRSuccess>("character.CPRSuccess", nameof(IEventHumanCPRSuccess.OnCharacterCPRSuccess));
+        _eventService.RegisterLuaEventAlias<IEventHumanCPRFailed>("character.CPRFailed", nameof(IEventHumanCPRFailed.OnCharacterCPRFailed));
+        _eventService.RegisterLuaEventAlias<IEventCharacterApplyDamage>("character.applyDamage", nameof(IEventCharacterApplyDamage.OnCharacterApplyDamage));
+        _eventService.RegisterLuaEventAlias<IEventCharacterApplyAffliction>("character.applyAffliction", nameof(IEventCharacterApplyAffliction.OnCharacterApplyAffliction));
+
+        _eventService.RegisterLuaEventAlias<IEventGapOxygenUpdate>("gapOxygenUpdate", nameof(IEventGapOxygenUpdate.OnGapOxygenUpdate));
+
+        _eventService.RegisterLuaEventAlias<IEventClientControlHusk>("husk.clientControlHusk", nameof(IEventClientControlHusk.OnClientControlHusk));
+
+        _eventService.RegisterLuaEventAlias<IEventMeleeWeaponHandleImpact>("meleeWeapon.handleImpact", nameof(IEventMeleeWeaponHandleImpact.OnMeleeWeaponHandleImpact));
+
+        _eventService.RegisterLuaEventAlias<IEventServerLog>("serverLog", nameof(IEventServerLog.OnServerLog));
+
+        _eventService.RegisterLuaEventAlias<IEventTryClientChangeName>("tryChangeClientName", nameof(IEventTryClientChangeName.OnTryClienChangeName));
+
+        _eventService.RegisterLuaEventAlias<IEventChangeFallDamage>("changeFallDamage", nameof(IEventChangeFallDamage.OnChangeFallDamage));
+
+        _eventService.RegisterLuaEventAlias<IEventCanUseVoiceRadio>("canUseVoiceRadio", nameof(IEventCanUseVoiceRadio.OnCanUseVoiceRadio));
+        _eventService.RegisterLuaEventAlias<IEventChangeLocalVoiceRange>("changeLocalVoiceRange", nameof(IEventChangeLocalVoiceRange.OnChangeLocalVoiceRange));
 
         _eventService.RegisterLuaEventAlias<IEventRoundStarted>("roundStart", nameof(IEventRoundStarted.OnRoundStart));
         _eventService.RegisterLuaEventAlias<IEventRoundEnded>("roundEnd", nameof(IEventRoundEnded.OnRoundEnd));
@@ -190,6 +209,8 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
         _eventService.RegisterLuaEventAlias<IEventItemRemoved>("item.removed", nameof(IEventItemRemoved.OnItemRemoved));
         _eventService.RegisterLuaEventAlias<IEventItemUse>("item.use", nameof(IEventItemUse.OnItemUsed));
         _eventService.RegisterLuaEventAlias<IEventItemSecondaryUse>("item.secondaryUse", nameof(IEventItemSecondaryUse.OnItemSecondaryUsed));
+        _eventService.RegisterLuaEventAlias<IEventItemReadPropertyChange>("item.readPropertyChange", nameof(IEventItemReadPropertyChange.OnItemReadPropertyChange));
+        _eventService.RegisterLuaEventAlias<IEventItemDeconstructed>("item.deconstructed", nameof(IEventItemDeconstructed.OnItemDeconstructed));
 
         _eventService.RegisterLuaEventAlias<IEventInventoryPutItem>("inventoryPutItem", nameof(IEventInventoryPutItem.OnInventoryPutItem));
         _eventService.RegisterLuaEventAlias<IEventInventoryItemSwap>("inventoryItemSwap", nameof(IEventInventoryItemSwap.OnInventoryItemSwap));

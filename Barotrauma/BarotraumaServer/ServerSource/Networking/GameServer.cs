@@ -3511,7 +3511,8 @@ namespace Barotrauma.Networking
                 return false;
             }
 
-            var result = GameMain.LuaCs.Hook.Call<bool?>("tryChangeClientName", c, newName, newJob, newTeam);
+            bool? result = null;
+            GameMain.LuaCs.EventService.PublishEvent<IEventTryClientChangeName>(x => result = x.OnTryClienChangeName(c, newName, newJob, newTeam) ?? result);
 
             if (result != null)
             {
@@ -3968,15 +3969,7 @@ namespace Barotrauma.Networking
                 //send to chat-linked wifi components
                 Signal s = new Signal(message, sender: senderCharacter, source: senderRadio.Item);
                 senderRadio.TransmitSignal(s, sentFromChat: true);
-            }
-
-            var hookChatMsg = ChatMessage.Create(senderName, message, (ChatMessageType)type, senderCharacter, senderClient, changeType);
-
-            var should = GameMain.LuaCs.Hook.Call<bool?>("modifyChatMessage", hookChatMsg, senderRadio);
-
-            if (should != null && should.Value)
-                return;
-            
+            }            
 
             //check which clients can receive the message and apply distance effects
             foreach (Client client in ConnectedClients)
@@ -4778,7 +4771,7 @@ namespace Barotrauma.Networking
         {
             if (GameMain.Server == null || !GameMain.Server.ServerSettings.SaveServerLogs) { return; }
 
-            GameMain.LuaCs?.Hook?.Call("serverLog", line, messageType);
+            GameMain.LuaCs?.EventService.PublishEvent<IEventServerLog>(x => x.OnServerLog(line, messageType));
 
             GameMain.Server.ServerSettings.ServerLog.WriteLine(line, messageType);
 

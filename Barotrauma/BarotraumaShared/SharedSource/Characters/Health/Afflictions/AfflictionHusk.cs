@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using System;
 using Barotrauma.Extensions;
 using Microsoft.Xna.Framework;
+using Barotrauma.LuaCs.Events;
 
 namespace Barotrauma
 {
@@ -343,7 +344,7 @@ namespace Barotrauma
                     if (client != null)
                     {
                         GameMain.Server.SetClientCharacter(client, husk);
-                        GameMain.LuaCs.Hook.Call("husk.clientControlHusk", new object[] { client, husk });
+                        GameMain.LuaCs.EventService.PublishEvent<IEventClientControlHusk>(x => x.OnClientControlHusk(client, husk));
                     }
 #else
                     if (!character.IsRemotelyControlled && character == Character.Controlled)

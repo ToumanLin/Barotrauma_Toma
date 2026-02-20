@@ -1,11 +1,13 @@
 ﻿using Barotrauma.Abilities;
 using Barotrauma.Extensions;
+using Barotrauma.LuaCs.Events;
 using Barotrauma.Networking;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Xml.Linq;
+using static OneOf.Types.TrueFalseOrNull;
 
 namespace Barotrauma.Items.Components
 {
@@ -332,8 +334,9 @@ namespace Barotrauma.Items.Components
                 GameAnalyticsManager.AddDesignEvent("ItemDeconstructed:" + (GameMain.GameSession?.GameMode?.Preset.Identifier.Value ?? "none") + ":" + targetItem.Prefab.Identifier);
             }
 
-            bool? result = GameMain.LuaCs.Hook.Call<bool?>("item.deconstructed", targetItem, this, user, allowRemove);
-            if (result == true) { return; }
+            bool? should = null;
+            GameMain.LuaCs.EventService.PublishEvent<IEventItemDeconstructed>(x => should = x.OnItemDeconstructed(targetItem, this, user, allowRemove) ?? should);
+            if (should == true) { return; }
 
             if (targetItem.AllowDeconstruct && allowRemove)
             {
