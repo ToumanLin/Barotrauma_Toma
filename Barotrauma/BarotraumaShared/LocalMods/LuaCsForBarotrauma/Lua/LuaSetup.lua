@@ -20,7 +20,7 @@ AddTableToGlobal(dofile(path .. "/Lua/CompatibilityLib.lua"))
 
 dofile(path .. "/Lua/DefaultHook.lua")
 
-Descriptors = LuaSetup.LuaUserData
+Descriptors = LuaUserData
 
 dofile(path .. "/Lua/DefaultLib/Utils/Math.lua")
 dofile(path .. "/Lua/DefaultLib/Utils/String.lua")
