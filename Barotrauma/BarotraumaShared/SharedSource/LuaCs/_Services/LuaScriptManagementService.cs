@@ -196,6 +196,8 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
 
         _eventService.RegisterLuaEventAlias<IEventChangeFallDamage>("changeFallDamage", nameof(IEventChangeFallDamage.OnChangeFallDamage));
 
+        _eventService.RegisterLuaEventAlias<IEventChatMessage>("chatMessage", nameof(IEventChatMessage.OnChatMessage));
+
         _eventService.RegisterLuaEventAlias<IEventCanUseVoiceRadio>("canUseVoiceRadio", nameof(IEventCanUseVoiceRadio.OnCanUseVoiceRadio));
         _eventService.RegisterLuaEventAlias<IEventChangeLocalVoiceRange>("changeLocalVoiceRange", nameof(IEventChangeLocalVoiceRange.OnChangeLocalVoiceRange));
 

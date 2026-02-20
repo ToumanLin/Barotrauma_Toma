@@ -3,6 +3,7 @@ using Barotrauma.LuaCs.Data;
 using Barotrauma.Networking;
 using FarseerPhysics.Dynamics;
 using Microsoft.Xna.Framework;
+using MoonSharp.Interpreter;
 using Steamworks.Ugc;
 using System;
 using System.Collections.Generic;
@@ -258,10 +259,10 @@ internal interface IEventChatMessage : IEvent<IEventChatMessage>
 
         public bool? OnChatMessage(string messageText, Client sender, ChatMessageType type, ChatMessage message)
         {
-            var result = LuaFuncs[nameof(OnChatMessage)](messageText, sender, type, message);
-            if (result is bool b && b)
+            object result = LuaFuncs[nameof(OnChatMessage)](messageText, sender, type, message);
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return true;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -286,9 +287,9 @@ internal interface IEventTryClientChangeName : IEvent<IEventTryClientChangeName>
         public bool? OnTryClienChangeName(Client client, string newName, Identifier newJob, CharacterTeamType newTeam)
         {
             var result = LuaFuncs[nameof(OnTryClienChangeName)](client, newName, newJob, newTeam);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -313,9 +314,9 @@ internal interface IEventChangeFallDamage : IEvent<IEventChangeFallDamage>
         public float? OnChangeFallDamage(float impactDamage, Character character, Vector2 impactPos, Vector2 velocity)
         {
             var result = LuaFuncs[nameof(OnChangeFallDamage)](impactDamage, character, impactPos, velocity);
-            if (result is float f)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Number)
             {
-                return f;
+                return (float)dynValue.Number;
             }
 
             return null;
@@ -340,9 +341,9 @@ internal interface IEventGapOxygenUpdate : IEvent<IEventGapOxygenUpdate>
         public bool? OnGapOxygenUpdate(Gap gap, Hull hull1, Hull hull2)
         {
             var result = LuaFuncs[nameof(OnGapOxygenUpdate)](gap, hull1, hull2);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -367,9 +368,9 @@ internal interface IEventCharacterApplyDamage : IEvent<IEventCharacterApplyDamag
         public bool? OnCharacterApplyDamage(CharacterHealth characterHealth, AttackResult attackResult, Limb hitLimb, bool allowStacking)
         {
             var result = LuaFuncs[nameof(OnCharacterApplyDamage)](characterHealth, attackResult, hitLimb, allowStacking);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -394,9 +395,9 @@ internal interface IEventCharacterApplyAffliction : IEvent<IEventCharacterApplyA
         public bool? OnCharacterApplyAffliction(CharacterHealth characterHealth, CharacterHealth.LimbHealth limbHealth, Affliction newAffliction, bool allowStacking)
         {
             var result = LuaFuncs[nameof(OnCharacterApplyAffliction)](characterHealth, limbHealth, newAffliction, allowStacking);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -421,9 +422,9 @@ internal interface IEventItemReadPropertyChange : IEvent<IEventItemReadPropertyC
         public bool? OnItemReadPropertyChange(Item item, SerializableProperty property, object parentObject, bool allowEditing, Client sender)
         {
             var result = LuaFuncs[nameof(OnItemReadPropertyChange)](item, property, parentObject, allowEditing, sender);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -448,9 +449,9 @@ internal interface IEventCanUseVoiceRadio : IEvent<IEventCanUseVoiceRadio>
         public bool? OnCanUseVoiceRadio(Client sender, Client recipient)
         {
             var result = LuaFuncs[nameof(OnCanUseVoiceRadio)](sender, recipient);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -475,9 +476,9 @@ internal interface IEventChangeLocalVoiceRange : IEvent<IEventChangeLocalVoiceRa
         public float? OnChangeLocalVoiceRange(Client sender, Client recipient)
         {
             var result = LuaFuncs[nameof(OnChangeLocalVoiceRange)](sender, recipient);
-            if (result is float f)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Number)
             {
-                return f;
+                return (float)dynValue.Number;
             }
 
             return null;
@@ -502,9 +503,9 @@ internal interface IEventItemDeconstructed : IEvent<IEventItemDeconstructed>
         public bool? OnItemDeconstructed(Item item, Deconstructor deconstructor, Character user, bool allowRemove)
         {
             var result = LuaFuncs[nameof(OnItemDeconstructed)](item, deconstructor, user, allowRemove);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -529,9 +530,9 @@ internal interface IEventWifiSignalTransmitted : IEvent<IEventWifiSignalTransmit
         public bool? OnWifiSignalTransmitted(WifiComponent wifiComponent, Signal signal, bool sentFromChat)
         {
             var result = LuaFuncs[nameof(OnWifiSignalTransmitted)](wifiComponent, signal, sentFromChat);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
 
             return null;
@@ -789,14 +790,12 @@ interface IEventItemUse : IEvent<IEventItemUse>
         public bool? OnItemUsed(Item item, Character user, Limb targetLimb, Entity useTarget)
         {
             var result = LuaFuncs[nameof(OnItemUsed)](item, user, targetLimb, useTarget);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
-            else
-            {
-                return null;
-            }
+
+            return null;
         }
     }
 }
@@ -817,14 +816,12 @@ interface IEventItemSecondaryUse : IEvent<IEventItemSecondaryUse>
         public bool? OnItemSecondaryUsed(Item item, Character user)
         {
             var result = LuaFuncs[nameof(OnItemSecondaryUsed)](item, user);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
-            else
-            {
-                return null;
-            }
+
+            return null;
         }
     }
 }
@@ -844,15 +841,18 @@ interface IEventCharacterDamageLimb : IEvent<IEventCharacterDamageLimb>
 
         public AttackResult? OnCharacterDamageLimb(Character character, Vector2 worldPosition, Limb hitLimb, IEnumerable<Affliction> afflictions, float stun, bool playSound, Vector2 attackImpulse, Character attacker = null, float damageMultiplier = 1, bool allowStacking = true, float penetration = 0f, bool shouldImplode = false)
         {
-            var result = LuaFuncs[nameof(OnCharacterDamageLimb)](character, worldPosition, hitLimb, afflictions, stun, playSound, attackImpulse, attacker, damageMultiplier, allowStacking, penetration, shouldImplode);
+            object result = LuaFuncs[nameof(OnCharacterDamageLimb)](character, worldPosition, hitLimb, afflictions, stun, playSound, attackImpulse, attacker, damageMultiplier, allowStacking, penetration, shouldImplode);
+            if (result is DynValue dynValue)
+            {
+                result = dynValue.ToObject();
+            }
+
             if (result is AttackResult attackResult)
             {
                 return attackResult;
             }
-            else
-            {
-                return null;
-            }
+
+            return null;
         }
     }
 }
@@ -873,14 +873,12 @@ interface IEventInventoryPutItem : IEvent<IEventInventoryPutItem>
         public bool? OnInventoryPutItem(Inventory inventory, Item item, Character user, int i, bool removeItem)
         {
             var result = LuaFuncs[nameof(OnInventoryPutItem)](inventory, item, user, i, removeItem);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
-            else
-            {
-                return null;
-            }
+
+            return null;
         }
     }
 }
@@ -901,14 +899,12 @@ interface IEventInventoryItemSwap : IEvent<IEventInventoryItemSwap>
         public bool? OnInventoryItemSwap(Inventory inventory, Item item, Character user, int i, bool swapWholeStack)
         {
             var result = LuaFuncs[nameof(OnInventoryItemSwap)](inventory, item, user, i, swapWholeStack);
-            if (result is bool b)
+            if (result is DynValue dynValue && dynValue.Type == DataType.Boolean)
             {
-                return b;
+                return dynValue.Boolean;
             }
-            else
-            {
-                return null;
-            }
+
+            return null;
         }
     }
 }
