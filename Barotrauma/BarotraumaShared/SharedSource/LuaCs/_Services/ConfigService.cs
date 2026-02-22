@@ -306,7 +306,12 @@ public sealed partial class ConfigService : IConfigService
         
         foreach (var settingBase in cfgValues)
         {
+#if DEBUG
+            // log in debug only.
             ret.WithReasons(LoadSavedValueForConfig(settingBase).Reasons);
+#else
+            LoadSavedValueForConfig(settingBase);
+#endif
         }
 
         return ret;

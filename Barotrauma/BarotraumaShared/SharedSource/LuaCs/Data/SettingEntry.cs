@@ -52,6 +52,36 @@ public class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyncVar whe
 
     public virtual bool TrySetValue(T value)
     {
+#if CLIENT
+        if (SyncType is NetSync.ServerAuthority && NetworkingService is not null 
+                                                && GameMain.IsMultiplayer
+                                                && !GameMain.Client.HasPermission(this.WritePermissions))
+        {
+            return false;
+        }
+#endif
+        
+        if (!TrySetValueInternal(value))
+        {
+            return false;
+        }
+        
+#if CLIENT
+        if (GameMain.IsMultiplayer && SyncType is NetSync.ClientOneWay or NetSync.TwoWay)
+        {
+            NetworkingService?.SendNetVar(this);
+        }
+#elif SERVER
+        if (GameMain.IsMultiplayer && SyncType is NetSync.TwoWay or NetSync.ServerAuthority)
+        {
+            NetworkingService?.SendNetVar(this);
+        }
+#endif
+        return true;
+    }
+
+    private bool TrySetValueInternal(T value)
+    {
         if (value is null)
         {
             return false;
@@ -122,7 +152,8 @@ public class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyncVar whe
 
     public NetSync SyncType => ConfigInfo.NetSync;
     // needs to be added IConfigInfo
-    public ClientPermissions WritePermissions => throw new NotImplementedException();
+    public ClientPermissions WritePermissions => ClientPermissions.ManageSettings;
+    
     public void ReadNetMessage(IReadMessage message)
     {
         if (SyncType == NetSync.None || NetworkingService is null)
@@ -134,7 +165,7 @@ public class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyncVar whe
         {
             if (typeof(T).IsEnum)
             {
-                TrySetValue((T)(object)message.ReadInt32());
+                TrySetValueInternal((T)(object)message.ReadInt32());
             }
             
             // No...there's no better way to do this...
@@ -142,42 +173,42 @@ public class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyncVar whe
             switch (typeCode)
             {
                  case TypeCode.Boolean:
-                     TrySetValue((T)Convert.ChangeType(message.ReadBoolean(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadBoolean(), typeCode));
                      return;
                  case TypeCode.Byte:
-                     TrySetValue((T)Convert.ChangeType(message.ReadByte(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadByte(), typeCode));
                      return;
                  // SByte not supported by interface
                  case TypeCode.SByte:
-                     TrySetValue((T)Convert.ChangeType(message.ReadInt16(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadInt16(), typeCode));
                      return;
                  case TypeCode.Int16:
-                     TrySetValue((T)Convert.ChangeType(message.ReadInt16(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadInt16(), typeCode));
                      return;
                  case TypeCode.Char:
                  case TypeCode.UInt16:
-                     TrySetValue((T)Convert.ChangeType(message.ReadUInt16(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadUInt16(), typeCode));
                      return;
                  case TypeCode.Int32:
-                     TrySetValue((T)Convert.ChangeType(message.ReadInt32(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadInt32(), typeCode));
                      return;
                  case TypeCode.UInt32:
-                     TrySetValue((T)Convert.ChangeType(message.ReadUInt32(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadUInt32(), typeCode));
                      return;
                  case TypeCode.Int64:
-                     TrySetValue((T)Convert.ChangeType(message.ReadInt64(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadInt64(), typeCode));
                      return;
                  case TypeCode.UInt64:
-                     TrySetValue((T)Convert.ChangeType(message.ReadUInt64(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadUInt64(), typeCode));
                      return;
                  case TypeCode.Single:
-                     TrySetValue((T)Convert.ChangeType(message.ReadSingle(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadSingle(), typeCode));
                      return;
                  case TypeCode.Double:
-                     TrySetValue((T)Convert.ChangeType(message.ReadDouble(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadDouble(), typeCode));
                      return;
                  case TypeCode.String:
-                     TrySetValue((T)Convert.ChangeType(message.ReadString(), typeCode));
+                     TrySetValueInternal((T)Convert.ChangeType(message.ReadString(), typeCode));
                      return;
                  case TypeCode.Decimal: 
                  default:
