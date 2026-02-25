@@ -531,7 +531,7 @@ namespace Barotrauma
                 }
             };
 #endif
-            new GUIButton(new RectTransform(new Point(300, 30), Frame.RectTransform, Anchor.TopLeft) { AbsoluteOffset = new Point(40, 50) },
+            /*new GUIButton(new RectTransform(new Point(300, 30), Frame.RectTransform, Anchor.TopLeft) { AbsoluteOffset = new Point(40, 50) },
     $"Open LuaCs Settings", style: "MainMenuGUIButton", color: GUIStyle.Red)
             {
                 IgnoreLayoutGroups = true,
@@ -540,7 +540,7 @@ namespace Barotrauma
                     LuaCsSettingsMenu.Open(Frame.RectTransform);
                     return true;
                 }
-            };
+            };*/
 
             // TODO: Implement version reading.
             //string version = File.Exists(LuaCsSetup.VersionFile) ? File.ReadAllText(LuaCsSetup.VersionFile) : "Github";
