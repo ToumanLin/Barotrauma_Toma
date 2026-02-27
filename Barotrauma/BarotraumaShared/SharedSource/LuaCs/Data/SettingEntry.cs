@@ -150,7 +150,7 @@ public class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyncVar whe
         NetworkingService.RegisterNetVar(this);
     }
 
-    public NetSync SyncType => ConfigInfo.NetSync;
+    public NetSync SyncType => ConfigInfo?.NetSync ?? NetSync.None;
     // needs to be added IConfigInfo
     public ClientPermissions WritePermissions => ClientPermissions.ManageSettings;
     

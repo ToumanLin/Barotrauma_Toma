@@ -31,6 +31,26 @@ public static class GUIUtil
         return (left, right);
     }
     
+    public static (GUILayoutGroup Left, GUILayoutGroup Right) CreateSidebars(GUILayoutGroup parent, bool split = false)
+    {
+        GUILayoutGroup layout = new GUILayoutGroup(new RectTransform(Vector2.One, parent.RectTransform), isHorizontal: true);
+        GUILayoutGroup left = new GUILayoutGroup(new RectTransform((0.4875f, 1.0f), layout.RectTransform), isHorizontal: false);
+        var centerFrame = new GUIFrame(new RectTransform((0.025f, 1.0f), layout.RectTransform), style: null);
+        if (split)
+        {
+            new GUICustomComponent(new RectTransform(Vector2.One, centerFrame.RectTransform),
+                onDraw: (sb, c) =>
+                {
+                    sb.DrawLine((c.Rect.Center.X, c.Rect.Top),
+                        (c.Rect.Center.X, c.Rect.Bottom),
+                        GUIStyle.TextColorDim,
+                        2f);
+                });
+        }
+        GUILayoutGroup right = new GUILayoutGroup(new RectTransform((0.4875f, 1.0f), layout.RectTransform), isHorizontal: false);
+        return (left, right);
+    }
+    
     public static GUILayoutGroup CreateCenterLayout(GUIFrame parent)
         => new GUILayoutGroup(new RectTransform((0.5f, 1.0f), parent.RectTransform, Anchor.TopCenter, Pivot.TopCenter)) { ChildAnchor = Anchor.TopCenter };
 
@@ -59,9 +79,9 @@ public static class GUIUtil
             => Dropdown(parent, textFunc, tooltipFunc, (T[])Enum.GetValues(typeof(T)), currentValue, setter, adjustRatio);
         
     public static GUIDropDown Dropdown<T>(GUILayoutGroup parent, Func<T, LocalizedString> textFunc, Func<T, 
-        LocalizedString>? tooltipFunc, IReadOnlyList<T> values, T currentValue, Action<T> setter, Vector2 adjustRatio)
+        LocalizedString>? tooltipFunc, IReadOnlyList<T> values, T currentValue, Action<T> setter, Vector2 adjustRatio, float listBoxScale = 1)
     {
-        var dropdown = new GUIDropDown(NewItemRectT(parent, adjustRatio));
+        var dropdown = new GUIDropDown(NewItemRectT(parent, adjustRatio), listBoxScale: listBoxScale);
         values.ForEach(v => dropdown.AddItem(text: textFunc(v), userData: v, toolTip: tooltipFunc?.Invoke(v) ?? null));
         int childIndex = values.IndexOf(currentValue);
         dropdown.Select(childIndex);

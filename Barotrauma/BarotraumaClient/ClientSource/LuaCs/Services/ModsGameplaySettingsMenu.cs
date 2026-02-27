@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using System.Linq;
 
 namespace Barotrauma.LuaCs;
 
@@ -32,9 +33,19 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenu
                 return true;
             }
         };
-        
-        
+        // display area
+        var settingsContentAreaGroup = new GUILayoutGroup(new RectTransform(new Vector2(1f, 0.90f), contentAreaLayoutGroup.RectTransform, Anchor.BottomCenter));
+        GUIUtil.Spacer(settingsContentAreaGroup, Vector2.One);
+        var (modCategoryDisplayGroup, settingsDisplayGroup) = GUIUtil.CreateSidebars(settingsContentAreaGroup, true);
+        modCategoryDisplayGroup.RectTransform.RelativeSize = new Vector2(0.3f, 1f);
+        settingsDisplayGroup.RectTransform.RelativeSize = new Vector2(0.7f, 1f);
+        var cpList = packageManagementService.GetAllLoadedPackages().OrderBy(cp => cp.Name == "Vanilla" ? 0 : 1).ThenBy(cp => cp.Name).ToList();
+        var modSelectDropDown = GUIUtil.Dropdown<ContentPackage>(modCategoryDisplayGroup, cp => cp.Name == "Vanilla" ? "All" : cp.Name, null, cpList, cpList[0], cp =>
+        {
+            // filter selections
+        }, Vector2.One, 2);
     }
+
 
     protected override void DisposeInternal()
     {
