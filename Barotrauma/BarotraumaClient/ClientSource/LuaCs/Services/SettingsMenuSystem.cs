@@ -46,8 +46,6 @@ public class SettingsMenuSystem : ISettingsMenuSystem
 
         _gameplayMenuInstance = new ModsGameplaySettingsMenu(gameplayContentFrame, _packageManagementService, _configService, __instance);
         _controlsMenuInstance = new ModsControlsSettingsMenu(controlsContentFrame, _packageManagementService, _configService, __instance);
-        
-        
     }
     
     private GUIFrame CreateNewContentTab(SettingsMenu.Tab tab, SettingsMenu settingsMenuInstance, string settingsMenuTabName, string settingMenuHoverTextIdent)
@@ -60,9 +58,9 @@ public class SettingsMenuSystem : ISettingsMenuSystem
         var contentFr = new GUIFrame(new RectTransform(Vector2.One * 0.95f, settingsMenuInstance.contentFrame.RectTransform, Anchor.Center, Pivot.Center), style: null);
             
         var button = new GUIButton(new RectTransform(Vector2.One, settingsMenuInstance.tabber.RectTransform, 
-            Anchor.TopLeft, Pivot.TopLeft, scaleBasis: ScaleBasis.Smallest), "", style: $"SettingsMenuTab.Mods")
+            Anchor.TopLeft, Pivot.TopLeft, scaleBasis: ScaleBasis.Smallest), "", style: settingsMenuTabName)
         {
-            ToolTip = TextManager.Get($"LuaCsForBarotrauma.SettingsMenu.ModSettingsButton"),
+            ToolTip = TextManager.Get(settingMenuHoverTextIdent),
             OnClicked = (b, _) =>
             {
                 settingsMenuInstance.SelectTab(tab);
