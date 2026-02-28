@@ -18,7 +18,7 @@ partial class NetworkingService : INetworkingService, IEventServerConnected, IEv
 
     public void OnReceivedServerNetMessage(IReadMessage netMessage, ServerPacketHeader serverPacketHeader)
     {
-        if (serverPacketHeader != ServerPacketHeader.LUA_NET_MESSAGE)
+        if (serverPacketHeader != ServerHeader)
         {
             return;
         }
@@ -46,7 +46,7 @@ partial class NetworkingService : INetworkingService, IEventServerConnected, IEv
         if (GameMain.Client == null) { return; }
 
         WriteOnlyMessage message = new WriteOnlyMessage();
-        message.WriteByte((byte)ClientPacketHeader.LUA_NET_MESSAGE);
+        message.WriteByte((byte)ClientHeader);
         message.WriteByte((byte)ClientToServer.RequestSync);
         GameMain.Client.ClientPeer.Send(message, DeliveryMethod.Reliable);
     }
@@ -55,7 +55,7 @@ partial class NetworkingService : INetworkingService, IEventServerConnected, IEv
     {
         var message = new WriteOnlyMessage();
 
-        message.WriteByte((byte)ClientPacketHeader.LUA_NET_MESSAGE);
+        message.WriteByte((byte)ClientHeader);
 
         if (idToPacket.ContainsKey(netId))
         {
@@ -86,7 +86,7 @@ partial class NetworkingService : INetworkingService, IEventServerConnected, IEv
         if (GameMain.Client == null) { return; }
 
         WriteOnlyMessage message = new WriteOnlyMessage();
-        message.WriteByte((byte)ClientPacketHeader.LUA_NET_MESSAGE);
+        message.WriteByte((byte)ClientHeader);
         message.WriteByte((byte)ClientToServer.RequestSingleNetId);
 
         NetId.Write(message, netId);

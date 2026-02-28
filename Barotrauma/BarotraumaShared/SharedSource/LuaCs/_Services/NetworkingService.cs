@@ -6,6 +6,7 @@ using FluentResults;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -46,6 +47,36 @@ internal partial class NetworkingService : INetworkingService
         NetMessageInternalId,
         NetMessageNetId,
         ReceiveNetIds
+    }
+
+    private ClientPacketHeader? clientHeader = null;
+    public ClientPacketHeader ClientHeader
+    {
+        get
+        {
+            if (clientHeader == null)
+            {
+                byte lastHeader = (byte)Enum.GetValues(typeof(ClientPacketHeader)).Cast<ClientPacketHeader>().Last();
+                clientHeader = (ClientPacketHeader)(lastHeader + 1);
+            }
+
+            return (ClientPacketHeader)clientHeader;
+        }
+    }
+
+    private ServerPacketHeader? serverHeader = null;
+    public ServerPacketHeader ServerHeader
+    {
+        get
+        {
+            if (serverHeader == null)
+            {
+                byte lastHeader = (byte)Enum.GetValues(typeof(ServerPacketHeader)).Cast<ServerPacketHeader>().Last();
+                serverHeader = (ServerPacketHeader)(lastHeader + 1);
+            }
+
+            return (ServerPacketHeader)serverHeader;
+        }
     }
 
 
