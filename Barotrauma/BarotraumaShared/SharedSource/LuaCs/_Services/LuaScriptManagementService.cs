@@ -243,6 +243,10 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
         _eventService.RegisterLuaEventAlias<IEventClientConnected>("client.connected", nameof(IEventClientConnected.OnClientConnected));
         _eventService.RegisterLuaEventAlias<IEventClientDisconnected>("client.disconnected", nameof(IEventClientDisconnected.OnClientDisconnected));
         _eventService.RegisterLuaEventAlias<IEventJobsAssigned>("jobsAssigned", nameof(IEventJobsAssigned.OnJobsAssigned));
+
+        _eventService.RegisterLuaEventAlias<IEventClientRawNetMessageReceived>("netMessageReceived", nameof(IEventClientRawNetMessageReceived.OnReceivedClientNetMessage));
+#elif CLIENT
+        _eventService.RegisterLuaEventAlias<IEventServerRawNetMessageReceived>("netMessageReceived", nameof(IEventServerRawNetMessageReceived.OnReceivedServerNetMessage));
 #endif
     }
 

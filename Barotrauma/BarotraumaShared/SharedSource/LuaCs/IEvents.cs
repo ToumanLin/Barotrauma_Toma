@@ -7,6 +7,7 @@ using MoonSharp.Interpreter;
 using Steamworks.Ugc;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Barotrauma.LuaCs.Events;
@@ -917,7 +918,28 @@ interface IEventInventoryItemSwap : IEvent<IEventInventoryItemSwap>
 #if SERVER
 public interface IEventClientRawNetMessageReceived : IEvent<IEventClientRawNetMessageReceived>
 {
-    void OnReceivedClientNetMessage(IReadMessage netMessage, ClientPacketHeader serverPacketHeader, NetworkConnection sender);
+    void OnReceivedClientNetMessage(IReadMessage netMessage, ClientPacketHeader clientPacketHeader, NetworkConnection sender);
+
+    static IEventClientRawNetMessageReceived IEvent<IEventClientRawNetMessageReceived>.GetLuaRunner(IDictionary<string, LuaCsFunc> luaFunc)
+        => new LuaWrapper(luaFunc);
+
+    public sealed class LuaWrapper : LuaWrapperBase, IEventClientRawNetMessageReceived
+    {
+        public LuaWrapper(IDictionary<string, LuaCsFunc> luaFuncs) : base(luaFuncs)
+        {
+        }
+
+        public void OnReceivedClientNetMessage(IReadMessage netMessage, ClientPacketHeader clientPacketHeader, NetworkConnection sender)
+        {
+            if (GameMain.Server == null) { return; }
+
+            Client client = GameMain.Server.ConnectedClients.FirstOrDefault(c => c.Connection == sender);
+
+            if (client == null) { return; }
+
+            LuaFuncs[nameof(OnReceivedClientNetMessage)](netMessage, clientPacketHeader, client);
+        }
+    }
 }
 
 /// <summary>
@@ -1007,6 +1029,21 @@ interface IEventJobsAssigned : IEvent<IEventJobsAssigned>
 public interface IEventServerRawNetMessageReceived : IEvent<IEventServerRawNetMessageReceived>
 {
     void OnReceivedServerNetMessage(IReadMessage netMessage, ServerPacketHeader serverPacketHeader);
+
+    static IEventServerRawNetMessageReceived IEvent<IEventServerRawNetMessageReceived>.GetLuaRunner(IDictionary<string, LuaCsFunc> luaFunc)
+    => new LuaWrapper(luaFunc);
+
+    public sealed class LuaWrapper : LuaWrapperBase, IEventServerRawNetMessageReceived
+    {
+        public LuaWrapper(IDictionary<string, LuaCsFunc> luaFuncs) : base(luaFuncs)
+        {
+        }
+
+        public void OnReceivedServerNetMessage(IReadMessage netMessage, ServerPacketHeader serverPacketHeader)
+        {
+            LuaFuncs[nameof(OnReceivedServerNetMessage)](netMessage, serverPacketHeader);
+        }
+    }
 }
 
 /// <summary>
