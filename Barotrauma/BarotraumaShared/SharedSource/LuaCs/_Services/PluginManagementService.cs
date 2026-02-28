@@ -560,9 +560,12 @@ public class PluginManagementService : IAssemblyManagementService
                         compileWithInternalName = resourceInfo.UseInternalAccessName;
                 
                         CancellationToken token = CancellationToken.None;
-                
+
+                        string sourceCode = loadRes.Value;
+                        sourceCode = DoSourceCodeTextCompatibilityPass(sourceCode);
+
                         syntaxTreesBuilder.Add(SyntaxFactory.ParseSyntaxTree(
-                            text: loadRes.Value,
+                            text: sourceCode,
                             options: ScriptParseOptions,
                             path: null,
                             encoding: Encoding.Default,
@@ -611,6 +614,11 @@ public class PluginManagementService : IAssemblyManagementService
             }
             return builder.ToImmutable();
         }
+    }
+
+    private string DoSourceCodeTextCompatibilityPass(string sourceCode)
+    {
+        return sourceCode.Replace("GameMain.LuaCs", "LuaCsSetup.Instance");
     }
 
     private IntPtr OnAssemblyLoaderResolvingUnmanaged(Assembly arg1, string arg2)
