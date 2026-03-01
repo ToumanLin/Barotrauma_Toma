@@ -1288,37 +1288,6 @@ namespace Barotrauma
                 GameMain.NetLobbyScreen.LevelSeed = string.Join(" ", args);
             }));
 
-
-            commands.Add(new Command("lua", "lua: Runs a string.", (string[] args) =>
-            {
-                var result = LuaCsSetup.Instance.LuaScriptManagementService.DoString(string.Join(" ", args));
-                LuaCsSetup.Instance.Logger.LogResults(result.ToResult());
-            }));
-
-            commands.Add(new Command("reloadlua|reloadcs|reloadluacs", "Re-initializes the LuaCs environment.", (string[] args) =>
-            {
-                //GameMain.LuaCs.Initialize();
-                LuaCsSetup.Instance.EventService.PublishEvent<IEventReloadAllPackages>(sub => sub.OnReloadAllPackages());
-            }));
-
-            commands.Add(new Command("toggleluadebug", "Toggles the MoonSharp Debug Server.", (string[] args) =>
-            {
-                int port = 41912;
-
-                if (args.Length > 0)
-                {
-                    int.TryParse(args[0], out port);
-                }
-
-                throw new NotImplementedException();
-                //GameMain.LuaCs.ToggleDebugger(port);
-            }));
-
-            commands.Add(new Command("install_cl_lua|install_cl|install_cl_cs|install_cl_luacs", "Installs Client-Side LuaCs into your client.", (string[] args) =>
-            {
-                LuaCsInstaller.Install();
-            }));
-
             commands.Add(new Command("randomizeseed", "randomizeseed: Toggles level seed randomization on/off.", (string[] args) =>
             {
                 GameMain.Server.ServerSettings.RandomizeSeed = !GameMain.Server.ServerSettings.RandomizeSeed;

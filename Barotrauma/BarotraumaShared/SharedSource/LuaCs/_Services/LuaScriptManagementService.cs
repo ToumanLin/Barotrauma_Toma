@@ -84,13 +84,33 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
         _luaCsTimer = luaCsTimer;
 
         RegisterLuaEvents();
+        RegisterConsoleCommands(_commandsService);
     }
 
     private void RegisterConsoleCommands(IConsoleCommandsService commands)
     {
+#if CLIENT
         commands.RegisterCommand("cl_reloadlua|cl_reloadcs|cl_reloadluacs", "Re-initializes the LuaCs environment.", (string[] args) =>
         {
             LuaCsSetup.Instance.EventService.PublishEvent<IEventReloadAllPackages>(sub => sub.OnReloadAllPackages());
+        });
+
+        commands.RegisterCommand("cl_lua", $"cl_lua: Runs a string on the client.", (string[] args) =>
+        {
+            if (GameMain.Client != null && !GameMain.Client.HasPermission(ClientPermissions.ConsoleCommands))
+            {
+                DebugConsole.ThrowError("Command not permitted.");
+                return;
+            }
+
+            if (LuaCsSetup.Instance.CurrentRunState != RunState.Running)
+            {
+                DebugConsole.ThrowError("LuaCs not initialized, use the console command cl_reloadluacs to force initialization.");
+                return;
+            }
+
+            var result = LuaCsSetup.Instance.LuaScriptManagementService.DoString(string.Join(" ", args));
+            LuaCsSetup.Instance.Logger.LogResults(result.ToResult());
         });
 
         commands.RegisterCommand("cl_toggleluadebug", "Toggles the MoonSharp Debug Server.", (string[] args) =>
@@ -105,6 +125,39 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
             throw new NotImplementedException();
             //GameMain.LuaCs.ToggleDebugger(port);
         });
+
+#elif SERVER
+        commands.RegisterCommand("lua", "lua: Runs a string.", (string[] args) =>
+        {
+            var result = LuaCsSetup.Instance.LuaScriptManagementService.DoString(string.Join(" ", args));
+            LuaCsSetup.Instance.Logger.LogResults(result.ToResult());
+        });
+
+        commands.RegisterCommand("reloadlua|reloadcs|reloadluacs", "Re-initializes the LuaCs environment.", (string[] args) =>
+        {
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventReloadAllPackages>(sub => sub.OnReloadAllPackages());
+        });
+
+        commands.RegisterCommand("toggleluadebug", "Toggles the MoonSharp Debug Server.", (string[] args) =>
+        {
+            int port = 41912;
+
+            if (args.Length > 0)
+            {
+                int.TryParse(args[0], out port);
+            }
+
+            throw new NotImplementedException();
+            //GameMain.LuaCs.ToggleDebugger(port);
+        });
+#endif
+
+#if SERVER
+        commands.RegisterCommand("install_cl_lua|install_cl|install_cl_cs|install_cl_luacs", "Installs Client-Side LuaCs into your client.", (string[] args) =>
+        {
+            LuaCsInstaller.Install();
+        });
+#endif
     }
 
     public bool IsDisposed { get; private set; }

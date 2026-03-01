@@ -660,12 +660,6 @@ namespace Barotrauma
                     return;
                 }
 
-                bool luaCsEnabled = true;
-                if (args.Length > 3)
-                {
-                    bool.TryParse(args[3], out luaCsEnabled);
-                }
-
                 GameMain.MainMenuScreen.QuickStart(fixedSeed: false, subName, difficulty, levelGenerationParams);
 
             }, getValidArgs: () => new[] { SubmarineInfo.SavedSubmarines.Select(s => s.Name).Distinct().OrderBy(s => s).ToArray() }));
@@ -4222,24 +4216,6 @@ namespace Barotrauma
                     NewMessage("Minimum main path width: " + (Level.Loaded.LevelData?.MinMainPathWidth?.ToString() ?? "unknown"));
                 }
             });
-
-            commands.Add(new Command("cl_lua", $"cl_lua: Runs a string on the client.", (string[] args) =>
-            {
-                if (GameMain.Client != null && !GameMain.Client.HasPermission(ClientPermissions.ConsoleCommands))
-                {
-                    ThrowError("Command not permitted.");
-                    return;
-                }
-
-                if (LuaCsSetup.Instance.CurrentRunState != RunState.Running)
-                {
-                    ThrowError("LuaCs not initialized, use the console command cl_reloadluacs to force initialization.");
-                    return;
-                }
-
-                var result = LuaCsSetup.Instance.LuaScriptManagementService.DoString(string.Join(" ", args));
-                LuaCsSetup.Instance.Logger.LogResults(result.ToResult());
-            }));
         }
 
         private static void ReloadWearables(Character character, int variant = 0)
