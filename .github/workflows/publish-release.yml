@@ -64,7 +64,11 @@ env:
     Mono.Cecil.Mdb.dll
     Mono.Cecil.Pdb.dll
     Mono.Cecil.Rocks.dll
-    Microsoft.CodeAnalysis.CSharp.Scripting.dll
+    LightInject.dll
+    OneOf.dll
+    FluentResults.dll
+    Basic.Reference.Assemblies.Net80.dll
+    Microsoft.Toolkit.Diagnostics.dll
     Microsoft.CodeAnalysis.CSharp.dll
     Microsoft.CodeAnalysis.dll
     Microsoft.CodeAnalysis.Scripting.dll
@@ -73,6 +77,7 @@ env:
     System.Runtime.CompilerServices.Unsafe.dll
     mscordaccore_amd64_amd64_*
     Lua
+    LocalMods/LuaCsForBarotrauma
 
 jobs:
   build:
