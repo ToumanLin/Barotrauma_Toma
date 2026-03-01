@@ -239,12 +239,20 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
         _eventService.RegisterLuaEventAlias<IEventInventoryPutItem>("inventoryPutItem", nameof(IEventInventoryPutItem.OnInventoryPutItem));
         _eventService.RegisterLuaEventAlias<IEventInventoryItemSwap>("inventoryItemSwap", nameof(IEventInventoryItemSwap.OnInventoryItemSwap));
 
+        // Compatibility
+        _eventService.RegisterLuaEventAlias<IEventCharacterCreated>("characterCreated", nameof(IEventCharacterCreated.OnCharacterCreated));
+        _eventService.RegisterLuaEventAlias<IEventCharacterDeath>("characterDeath", nameof(IEventCharacterDeath.OnCharacterDeath));
+
 #if SERVER
         _eventService.RegisterLuaEventAlias<IEventClientConnected>("client.connected", nameof(IEventClientConnected.OnClientConnected));
         _eventService.RegisterLuaEventAlias<IEventClientDisconnected>("client.disconnected", nameof(IEventClientDisconnected.OnClientDisconnected));
         _eventService.RegisterLuaEventAlias<IEventJobsAssigned>("jobsAssigned", nameof(IEventJobsAssigned.OnJobsAssigned));
 
         _eventService.RegisterLuaEventAlias<IEventClientRawNetMessageReceived>("netMessageReceived", nameof(IEventClientRawNetMessageReceived.OnReceivedClientNetMessage));
+
+        // Compatibility
+        _eventService.RegisterLuaEventAlias<IEventClientConnected>("clientConnected", nameof(IEventClientConnected.OnClientConnected));
+        _eventService.RegisterLuaEventAlias<IEventClientDisconnected>("clientDisconnected", nameof(IEventClientDisconnected.OnClientDisconnected));
 #elif CLIENT
         _eventService.RegisterLuaEventAlias<IEventServerRawNetMessageReceived>("netMessageReceived", nameof(IEventServerRawNetMessageReceived.OnReceivedServerNetMessage));
 #endif
