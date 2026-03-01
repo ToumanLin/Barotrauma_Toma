@@ -71,7 +71,6 @@ env:
     Microsoft.Toolkit.Diagnostics.dll
     Microsoft.CodeAnalysis.CSharp.dll
     Microsoft.CodeAnalysis.dll
-    Microsoft.CodeAnalysis.Scripting.dll
     System.Collections.Immutable.dll
     System.Reflection.Metadata.dll
     System.Runtime.CompilerServices.Unsafe.dll
