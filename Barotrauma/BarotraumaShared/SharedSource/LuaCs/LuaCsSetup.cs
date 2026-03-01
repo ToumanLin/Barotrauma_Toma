@@ -325,6 +325,8 @@ namespace Barotrauma
             // ReSharper disable InconsistentNaming
             void RunStateUnloaded_OnEnter(State<RunState> currentState)
             {
+                Logger.LogMessage("LuaCs unloaded state entered");
+
                 if (PackageManagementService.IsAnyPackageRunning())
                 {
                     Logger.LogResults(PackageManagementService.StopRunningPackages());
@@ -342,6 +344,8 @@ namespace Barotrauma
                 PackageManagementService.Reset();
                 NetworkingService.Reset();
 
+                Logger.LogMessage("Services have been reset");
+
                 SubscribeToLuaCsEvents();
 
                 CurrentRunState = RunState.Unloaded;
@@ -349,6 +353,8 @@ namespace Barotrauma
 
             void RunStateLoadedNoExec_OnEnter(State<RunState> currentState)
             {
+                Logger.LogMessage("LuaCs no execution state entered");
+
                 if (PackageManagementService.IsAnyPackageRunning())
                 {
                     Logger.LogResults(PackageManagementService.StopRunningPackages());
@@ -371,6 +377,9 @@ namespace Barotrauma
                 
             void RunStateRunning_OnEnter(State<RunState> currentState)
             {
+                string csEnabled = IsCsEnabled ? "enabled" : "disabled";
+                Logger.LogMessage($"LuaCs running state entered. Running under commit {AssemblyInfo.GitRevision}, CSharp is {csEnabled}");
+
                 if (!PackageManagementService.IsAnyPackageLoaded())
                 {
                     foreach (var registrationProvider in _servicesProvider.GetAllServices<ISettingsRegistrationProvider>())
@@ -396,10 +405,15 @@ namespace Barotrauma
 #endif
                 CurrentRunState = RunState.Running;
             }
-                
+
+
             void RunStateRunning_OnExit(State<RunState> currentState)
             {
+                EventService.Call("stop");
+
                 Logger.LogResults(PackageManagementService.StopRunningPackages());
+
+                Logger.LogMessage("LuaCs running state exited");
             }
             // ReSharper restore InconsistentNaming
         }

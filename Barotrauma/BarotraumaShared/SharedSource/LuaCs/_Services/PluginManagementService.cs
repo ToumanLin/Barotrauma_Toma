@@ -356,6 +356,8 @@ public class PluginManagementService : IAssemblyManagementService
         {
             return FluentResults.Result.Ok();
         }
+
+        _logger.LogMessage($"Activating {nameof(IAssemblyPlugin)} instances");
         
         var loadedPackagePlugins =
             ImmutableArray.CreateBuilder<(ContentPackage Package, ImmutableArray<IAssemblyPlugin> Plugins)>();
@@ -368,6 +370,7 @@ public class PluginManagementService : IAssemblyManagementService
             {
                 try
                 {
+                    _logger.LogMessage($"- Instantiating {pluginType.Name}");
                     var plugin = (IAssemblyPlugin)Activator.CreateInstance(pluginType);
                     _pluginInjectorContainer.InjectProperties(plugin);
                     _pluginInjectorContainer.Register(pluginType, fac => plugin);
@@ -579,9 +582,7 @@ public class PluginManagementService : IAssemblyManagementService
                     continue;
                 }
                 
-#if DEBUG
-                _logger.Log($"[DEBUG] Compiling assembly for {scripts.Key}, in ContentPackage {contentPackRes.Key.Name}");
-#endif
+                _logger.LogMessage($"Compiling assembly for {scripts.Key}, in ContentPackage {contentPackRes.Key.Name}");
                 
                 result.WithReasons(assemblyLoader.CompileScriptAssembly(
                     assemblyName: scripts.Key,

@@ -348,7 +348,7 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
             return FluentResults.Result.Fail("Tried to execute Lua scripts without unloading first."); 
         }
 
-        _loggerService.LogMessage("Executing Lua scripts");
+        _loggerService.LogMessage("[Lua] Executing scripts");
 
         SetupEnvironment(enableSandbox);
 
@@ -373,7 +373,7 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
             {
                 try
                 {
-                    _loggerService.LogMessage($"Run {filePath.Value}");
+                    _loggerService.LogMessage($"[Lua] - Run {filePath.Value}");
                     _script.Call(_script.LoadFile(filePath.FullPath), resource.OwnerPackage.Dir);
                 }
                 catch(Exception e)
