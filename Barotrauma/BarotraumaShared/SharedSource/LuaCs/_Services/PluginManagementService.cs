@@ -96,7 +96,7 @@ public class PluginManagementService : IAssemblyManagementService
                     .Union(AssemblyLoadContext.Default.Assemblies
                         .Where(ass =>
                             !ass.IsDynamic &&
-                            !ass.GetName().FullName.EndsWith("Barotrauma.Core") &&
+                            !ass.GetName().FullName.EndsWith("BarotraumaCore") &&
                             !ass.GetName().FullName.EndsWith("Barotrauma") &&
                             !ass.GetName().FullName.EndsWith("DedicatedServer"))
                         .Select(MetadataReference (ass) => MetadataReference.CreateFromFile(ass.Location)))
