@@ -266,7 +266,7 @@ public sealed class ModConfigService : IModConfigService
             LuaScripts = GetLuaScriptsLegacy(src)
         };
 
-        ImmutableArray<IAssemblyResourceInfo> GetAssembliesLegacy(ContentPackage src)
+        ImmutableArray<IAssemblyResourceInfo> GetAssembliesLegacy(ContentPackage srcPackage)
         {
             var binSearchInd = new (string SubFolder, Target Targets, Platform Platforms)[]
             {
@@ -282,19 +282,19 @@ public sealed class ModConfigService : IModConfigService
 
             foreach (var searchPathways in binSearchInd)
             {
-                if (_storageService.FindFilesInPackage(src, searchPathways.SubFolder, "*.dll",
+                if (_storageService.FindFilesInPackage(srcPackage, searchPathways.SubFolder, "*.dll",
                         true) is { IsSuccess: true, Value.IsDefaultOrEmpty: false } result)
                 {
                     builder.Add(new AssemblyResourceInfo()
                     {
-                        OwnerPackage = src,
+                        OwnerPackage = srcPackage,
                         InternalName = searchPathways.SubFolder,
                         SupportedPlatforms = searchPathways.Platforms,
                         SupportedTargets = searchPathways.Targets,
                         LoadPriority = 0,
-                        FilePaths = result.Value.Select(fp => ContentPath.FromRaw(src, $"%ModDir%/{Path.GetRelativePath(src.Dir, fp)}".CleanUpPathCrossPlatform()))
+                        FilePaths = result.Value.Select(fp => ContentPath.FromRaw(srcPackage, $"%ModDir%/{Path.GetRelativePath(srcPackage.Dir, fp)}".CleanUpPathCrossPlatform()))
                             .ToImmutableArray(),
-                        FriendlyName = $"{src.Name}.{searchPathways.SubFolder.Replace('/','.')}",
+                        FriendlyName = $"{srcPackage.Name}.{searchPathways.SubFolder.Replace('/','.')}",
                         IncompatiblePackages = ImmutableArray<Identifier>.Empty,
                         RequiredPackages = ImmutableArray<Identifier>.Empty,
                         IsScript = false,
@@ -303,12 +303,12 @@ public sealed class ModConfigService : IModConfigService
                 }
             }
 
-            var sharedResult = _storageService.FindFilesInPackage(src,
-                Path.Combine(src.Dir, "CSharp/Shared"),
+            var sharedResult = _storageService.FindFilesInPackage(srcPackage,
+                Path.Combine("CSharp/Shared"),
                 "*.cs", true);
             var sharedFiles = sharedResult.IsSuccess && !sharedResult.Value.IsDefaultOrEmpty 
                 ? sharedResult.Value.Select(fp => 
-                    ContentPath.FromRaw(src, $"%ModDir%/{Path.GetRelativePath(src.Dir, fp)}".CleanUpPathCrossPlatform()))
+                    ContentPath.FromRaw(srcPackage, $"%ModDir%/{Path.GetRelativePath(srcPackage.Dir, fp)}".CleanUpPathCrossPlatform()))
                     .ToImmutableArray() 
                 : ImmutableArray<ContentPath>.Empty;
             
@@ -320,19 +320,19 @@ public sealed class ModConfigService : IModConfigService
 
             foreach (var searchPathways in srcSearchInd)
             {
-                if (_storageService.FindFilesInPackage(src, searchPathways.SubFolder, "*.cs",
+                if (_storageService.FindFilesInPackage(srcPackage, searchPathways.SubFolder, "*.cs",
                         true) is { IsSuccess: true, Value.IsDefaultOrEmpty: false } result)
                 {
                     builder.Add(new AssemblyResourceInfo()
                     {
-                        OwnerPackage = src,
+                        OwnerPackage = srcPackage,
                         InternalName = searchPathways.SubFolder,
                         SupportedPlatforms = searchPathways.Platforms,
                         SupportedTargets = searchPathways.Targets,
                         LoadPriority = 0,
                         FilePaths = result.Value
-                            .Select(fp => ContentPath.FromRaw(src, 
-                                $"%ModDir%/{Path.GetRelativePath(src.Dir, fp)}".CleanUpPathCrossPlatform()))
+                            .Select(fp => ContentPath.FromRaw(srcPackage, 
+                                $"%ModDir%/{Path.GetRelativePath(srcPackage.Dir, fp)}".CleanUpPathCrossPlatform()))
                             .Concat(sharedFiles).ToImmutableArray(),
                         FriendlyName = IAssemblyLoaderService.InternalsAwareAssemblyName,
                         IncompatiblePackages = ImmutableArray<Identifier>.Empty,
