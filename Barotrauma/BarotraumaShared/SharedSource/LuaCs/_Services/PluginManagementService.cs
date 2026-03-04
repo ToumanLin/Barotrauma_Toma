@@ -96,9 +96,9 @@ public class PluginManagementService : IAssemblyManagementService
                     .Union(AssemblyLoadContext.Default.Assemblies
                         .Where(ass =>
                             !ass.IsDynamic &&
-                            !ass.GetName().FullName.EndsWith("BarotraumaCore") &&
-                            !ass.GetName().FullName.EndsWith("Barotrauma") &&
-                            !ass.GetName().FullName.EndsWith("DedicatedServer"))
+                            !ass.GetName().FullName.StartsWith("BarotraumaCore") &&
+                            !ass.GetName().FullName.StartsWith("Barotrauma") &&
+                            !ass.GetName().FullName.StartsWith("DedicatedServer"))
                         .Select(MetadataReference (ass) => MetadataReference.CreateFromFile(ass.Location)))
                     .Where(ar => ar is not null)
                     .ToImmutableArray();
@@ -630,7 +630,8 @@ public class PluginManagementService : IAssemblyManagementService
 
     private Assembly OnAssemblyLoaderResolvingManaged(IAssemblyLoaderService requestingLoader, AssemblyName searchName)
     {
-        using var lck = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
+        // This method is used during assembly instantiation, we cannot put a lock here.
+        //using var lck = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
         
         foreach (var loader in _assemblyLoaders.Where(kvp => kvp.Value != requestingLoader)
@@ -643,7 +644,7 @@ public class PluginManagementService : IAssemblyManagementService
 
             foreach (var assembly in loader.Assemblies)
             {
-                if (assembly.GetName().Equals(searchName))
+                if (assembly.GetName().FullName == searchName.FullName)
                 {
                     return assembly;
                 }
