@@ -1,8 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.Xna.Framework;
 using System.Linq;
+using System.Numerics;
 using Barotrauma.LuaCs.Data;
+using Vector2 = Microsoft.Xna.Framework.Vector2;
+
 // ReSharper disable ObjectCreationAsStatement
 
 namespace Barotrauma.LuaCs;
@@ -57,6 +61,9 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
         (_modCategoryDisplayGroup, _settingsDisplayGroup) = GUIUtil.CreateSidebars(settingsContentAreaGroup, true);
         _modCategoryDisplayGroup.RectTransform.RelativeSize = new Vector2(0.3f, 1f);
         _settingsDisplayGroup.RectTransform.RelativeSize = new Vector2(0.7f, 1f);
+        
+        // default category
+        _selectedCategory = "All";
 
         GenerateCategoryListDisplay(_modCategoryDisplayGroup, GetTargetPackagesList(), GetDisplayCategoriesList());
         GenerateSettingsListDisplay(_settingsDisplayGroup, GetDisplaySettingsList());
@@ -68,18 +75,20 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
             GenerateSettingsListDisplay(_settingsDisplayGroup, GetDisplaySettingsList());
         }
         
-        string GetLocalizedString(string identifier)
+        string GetLocalizedString(string identifier, string defaultValue)
         {
             var lstr = TextManager.Get(identifier);
-            return lstr.IsNullOrWhiteSpace() ? "General" : lstr.Value;
+            return lstr.IsNullOrWhiteSpace() ? defaultValue : lstr.Value;
         }
 
         // Filters by selected package and query text
         ImmutableArray<string> GetDisplayCategoriesList()
         {
             return GetFilteredSettingsList()
-                .Select(s => GetLocalizedString(s.GetDisplayInfo().DisplayCategory))
+                .Select(s => GetLocalizedString(s.GetDisplayInfo().DisplayCategory, "General"))
+                .Concat(new []{ "All" })
                 .Distinct()
+                .OrderBy(s => s)
                 .ToImmutableArray();
         }
 
@@ -89,7 +98,10 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
             return _settingsInstancesGameplay
                 .Where(s => SettingMatchesQuery(s, _selectedSearchQuery))
                 .Select(s => s.OwnerPackage)
+                .Concat(new[] { ContentPackageManager.VanillaCorePackage })
                 .Distinct()
+                .OrderBy(p =>  p == ContentPackageManager.VanillaCorePackage ? 1 : 0)
+                .ThenBy(p => p.Name)
                 .ToImmutableArray();
         }
 
@@ -98,7 +110,8 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
         {
             return GetFilteredSettingsList()
                 .Where(s => _selectedCategory.IsNullOrWhiteSpace() 
-                            || GetLocalizedString(s.GetDisplayInfo().DisplayCategory) == _selectedCategory)
+                            || _selectedCategory == "All"
+                            || GetLocalizedString(s.GetDisplayInfo().DisplayCategory, "General") == _selectedCategory)
                 .ToImmutableArray();
         }
 
@@ -147,12 +160,12 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
             var packageSelectionList = GUIUtil.Dropdown<ContentPackage>(layoutGroup, cp => GetPackageName(cp), null,
                 packagesList, packagesList.Length > 0 ? packagesList[0] : null, cp =>
                 {
-                    _selectedContentPackage = cp == ContentPackageManager.VanillaCorePackage ? null : cp;
+                    _selectedContentPackage = cp;
                     _selectedCategory = string.Empty; 
                     GenerateCategoryListDisplay(_modCategoryDisplayGroup, GetTargetPackagesList(), GetDisplayCategoriesList());
                     GenerateSettingsListDisplay(_settingsDisplayGroup, GetDisplaySettingsList());
                 }, new Vector2(1f, 0.07f));
-            var containerBox = new GUIListBox(new RectTransform(new Vector2(1f, 0.93f), layoutGroup.RectTransform));
+            var containerBox = new GUIListBox(new RectTransform(new Vector2(1f, 0.945f), layoutGroup.RectTransform));
             float size_y = MathF.Max(categories.Length * 0.122f, 1f);
             var displayedCategoriesFrame = new GUIFrame(new RectTransform(new Vector2(1f, size_y), containerBox.Content.RectTransform), style: null, color: Color.Black)
             {
@@ -185,13 +198,67 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
 
         void GenerateSettingsListDisplay(GUILayoutGroup layoutGroup, ImmutableArray<ISettingBase> settings) 
         {
+            layoutGroup.ClearChildren();
+            float settingHeight = 0.06f;
             
+            var containerBox = new GUIListBox(new RectTransform(new Vector2(1f, 1f), layoutGroup.RectTransform));
+            foreach (var setting in settings)
+            {
+                var entry = AddSettingToDisplay(
+                    setting,
+                    containerBox.Content.RectTransform,
+                    settingHeight: settingHeight,
+                    labelSize: new Vector2(0.6f, 1f),
+                    controlSize: new Vector2(0.4f, 1f));
+                
+                
+            }
+        }
+
+        (GUIFrame entryFrame, GUILayoutGroup entryLayoutGroup) AddSettingToDisplay(ISettingBase setting, 
+            RectTransform parent, float settingHeight, Vector2 labelSize, Vector2 controlSize)
+        {
+            GUIFrame entryFrame = new GUIFrame(new RectTransform(new Vector2(1f, settingHeight), parent));
+            GUILayoutGroup entryLayoutGroup = new GUILayoutGroup(new RectTransform(Vector2.One, entryFrame.RectTransform), isHorizontal: true);
+
+            new GUITextBlock(new RectTransform(labelSize, entryLayoutGroup.RectTransform),
+                GetLocalizedString(setting.GetDisplayInfo().DisplayName, setting.GetDisplayInfo().DisplayName),
+                textColor: Color.PeachPuff,
+                font: GUIStyle.SmallFont,
+                textAlignment: Alignment.Left)
+            {
+                CanBeFocused = false
+            };
+
+            setting.AddDisplayComponent(entryLayoutGroup, controlSize, newValue =>
+            {
+                NewValuesCache[setting] = newValue;
+            });
+            return (entryFrame, entryLayoutGroup);
         }
     }
 
 
     protected override void DisposeInternal()
     {
-        // TODO: Finish this later.
+        NewValuesCache.Clear();
+        _modCategoryDisplayGroup?.Parent.RemoveChild(_modCategoryDisplayGroup);
+        _settingsDisplayGroup?.Parent.RemoveChild(_settingsDisplayGroup);
+        _modCategoryDisplayGroup = null;
+        _settingsDisplayGroup = null;
+    }
+
+    public override void ApplyInstalledModChanges()
+    {
+        foreach (var kvp in NewValuesCache)
+        {
+            if (kvp.Key.IsDisposed)
+            {
+                continue;
+            }
+
+            kvp.Key.TrySetValue(kvp.Value);
+        }
+        NewValuesCache.Clear();
     }
 }

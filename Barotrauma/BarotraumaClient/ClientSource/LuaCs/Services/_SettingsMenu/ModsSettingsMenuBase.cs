@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using Barotrauma.Extensions;
+using Barotrauma.LuaCs.Data;
 using Microsoft.Xna.Framework;
 
 namespace Barotrauma.LuaCs;
@@ -10,6 +12,7 @@ internal abstract class ModsSettingsMenuBase : IDisposable
     protected IPackageManagementService PackageManagementService { get; private set; }
     protected IConfigService ConfigService { get; private set; }
     protected SettingsMenu SettingsMenuInstance { get; private set; }
+    protected readonly ConcurrentDictionary<ISettingBase, string> NewValuesCache = new();
     
     protected ModsSettingsMenuBase(GUIFrame contentFrame, 
         IPackageManagementService packageManagementService, 
@@ -22,6 +25,7 @@ internal abstract class ModsSettingsMenuBase : IDisposable
     }
 
     protected abstract void DisposeInternal();
+    public abstract void ApplyInstalledModChanges();
 
     public void Dispose()
     {
@@ -31,5 +35,6 @@ internal abstract class ModsSettingsMenuBase : IDisposable
         ContentFrame = null;
         PackageManagementService = null;
         ConfigService = null;
+        NewValuesCache.Clear();
     }
 }

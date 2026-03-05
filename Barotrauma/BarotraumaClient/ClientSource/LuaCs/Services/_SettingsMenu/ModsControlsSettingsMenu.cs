@@ -14,4 +14,9 @@ internal sealed class ModsControlsSettingsMenu : ModsSettingsMenuBase
     {
         // TODO: Finish this later.
     }
+
+    public override void ApplyInstalledModChanges()
+    {
+        // TODO: Finish this later.
+    }
 }

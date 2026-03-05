@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Linq;
-using Barotrauma.LuaCs.Configuration;
 using Barotrauma.LuaCs.Data;
-using Barotrauma.Networking;
-using FluentResults;
 
 namespace Barotrauma.LuaCs;
 

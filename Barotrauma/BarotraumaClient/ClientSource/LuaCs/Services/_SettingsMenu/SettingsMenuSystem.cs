@@ -75,6 +75,14 @@ public class SettingsMenuSystem : ISettingsMenuSystem
         return contentFr;
     }
 
+
+    [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.ApplyInstalledModChanges)), HarmonyPostfix]
+    private static void SettingsMenu_ApplyInstalledModChanges_Post()
+    {
+        SystemInstance._gameplayMenuInstance?.ApplyInstalledModChanges();
+        SystemInstance._controlsMenuInstance?.ApplyInstalledModChanges();
+    }
+
     private void DisposeMenuFrames()
     {
         _controlsMenuInstance?.Dispose();

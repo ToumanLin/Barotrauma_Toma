@@ -8,7 +8,7 @@ using Barotrauma.Networking;
 
 namespace Barotrauma.LuaCs.Data;
 
-public interface ISettingBase : IDataInfo, IEquatable<ISettingBase>, IDisposable
+public partial interface ISettingBase : IDataInfo, IEquatable<ISettingBase>, IDisposable
 {
     /// <summary>
     /// Settings production factory. Should be implemented by all types and registered with the Dependency Injector.

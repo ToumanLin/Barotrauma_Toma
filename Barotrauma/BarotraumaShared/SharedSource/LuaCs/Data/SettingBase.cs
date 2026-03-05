@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Xml.Linq;
 using Barotrauma.LuaCs.Data;
+using Microsoft.Xna.Framework;
 using OneOf;
 
 namespace Barotrauma.LuaCs.Data;
@@ -60,4 +61,17 @@ public abstract class SettingBase : ISettingBase
     public abstract bool TrySetValue(OneOf<string, XElement> value);
     public abstract event Action<ISettingBase> OnValueChanged;
     public abstract OneOf<string, XElement> GetSerializableValue();
+#if CLIENT
+    public virtual void AddDisplayComponent(GUILayoutGroup layoutGroup, Vector2 relativeSize, Action<string> onSerializedValue)
+    {
+        new GUITextBox(new RectTransform(relativeSize, layoutGroup.RectTransform), font: GUIStyle.SmallFont)
+        {
+            OnEnterPressed = (box, txt) =>
+            {
+                onSerializedValue?.Invoke(txt);
+                return true;
+            }
+        };
+    }
+#endif
 }

@@ -75,7 +75,7 @@ public sealed class SettingsFileParserService :
                 continue;
             }
 
-            var packageIdent = res.path.ContentPackage.ToIdentifier().ToString();
+            var packageIdent = res.path.ContentPackage!.Name;
             
             foreach (var element in settingElements)
             {

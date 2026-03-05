@@ -6,7 +6,7 @@ using Barotrauma.LuaCs.Data;
 using Microsoft.Xna.Framework.Input;
 using OneOf;
 
-namespace Barotrauma.LuaCs.Configuration;
+namespace Barotrauma.LuaCs.Data;
 
 public class SettingControl : SettingBase, ISettingControl
 {

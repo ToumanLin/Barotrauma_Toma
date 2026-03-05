@@ -5,11 +5,12 @@ using Barotrauma.LuaCs.Data;
 using Barotrauma.LuaCs;
 using Barotrauma.Networking;
 using Microsoft.Toolkit.Diagnostics;
+using Microsoft.Xna.Framework;
 using OneOf;
 
 namespace Barotrauma.LuaCs.Data;
 
-public class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyncVar where T : IEquatable<T>, IConvertible
+public partial class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyncVar where T : IEquatable<T>, IConvertible
 {
     public class Factory : ISettingBase.IFactory<ISettingBase<T>>
     {
@@ -302,4 +303,57 @@ public class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyncVar whe
 #endif
         }
     }
+
+#if CLIENT
+    public override void AddDisplayComponent(GUILayoutGroup layoutGroup, Vector2 relativeSize, Action<string> onSerializedValue)
+    {
+        switch (Type.GetTypeCode(typeof(T)))
+        {
+            case TypeCode.Boolean:
+                new GUITickBox(new RectTransform(relativeSize, layoutGroup.RectTransform), "")
+                {
+                    Selected = (bool)Convert.ChangeType(this.Value, TypeCode.Boolean),
+                    OnSelected = (box) =>
+                    {
+                        onSerializedValue?.Invoke(box.Selected.ToString());
+                        return true;
+                    }
+                };
+                break;
+            case TypeCode.Byte:
+            case TypeCode.SByte:
+            case TypeCode.Int16:
+            case TypeCode.Char:
+            case TypeCode.UInt16:
+            case TypeCode.Int32:
+            case TypeCode.UInt32:
+            case TypeCode.Int64:
+            case TypeCode.UInt64:
+                new GUINumberInput(new RectTransform(relativeSize, layoutGroup.RectTransform), NumberType.Int)
+                {
+                    IntValue = (int)Convert.ChangeType(this.Value, TypeCode.Int32)!,
+                    OnValueChanged = (num) =>
+                    {
+                        onSerializedValue?.Invoke(num.IntValue.ToString());
+                    }
+                };
+                break;
+            case TypeCode.Single:
+            case TypeCode.Double:
+                new GUINumberInput(new RectTransform(relativeSize, layoutGroup.RectTransform), NumberType.Float)
+                {
+                    FloatValue = (float)Convert.ChangeType(this.Value, TypeCode.Single)!,
+                    OnValueChanged = (num) =>
+                    {
+                        onSerializedValue?.Invoke(num.FloatValue.ToString());
+                    }
+                };
+                break;
+            case TypeCode.String:
+                default:
+                base.AddDisplayComponent(layoutGroup, relativeSize, onSerializedValue);
+                break;
+        }
+    }
+#endif
 }

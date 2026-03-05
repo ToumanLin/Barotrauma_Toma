@@ -11,4 +11,6 @@
   <LuaCsForBarotrauma.HideUserNamesInLogs.DisplayCategory>General</LuaCsForBarotrauma.HideUserNamesInLogs.DisplayCategory>
   <LuaCsForBarotrauma.LocalDataSavePath.DisplayName>Where to Save Local Data</LuaCsForBarotrauma.LocalDataSavePath.DisplayName>
   <LuaCsForBarotrauma.LocalDataSavePath.DisplayCategory>General</LuaCsForBarotrauma.LocalDataSavePath.DisplayCategory>
+  <LuaCsForBarotrauma.RestrictMessageSize.DisplayName>Limit Network Message Size</LuaCsForBarotrauma.RestrictMessageSize.DisplayName>
+  <LuaCsForBarotrauma.RestrictMessageSize.DisplayCategory>Networking</LuaCsForBarotrauma.RestrictMessageSize.DisplayCategory>
 </infotexts>
