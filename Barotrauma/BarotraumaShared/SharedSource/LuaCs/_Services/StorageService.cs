@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 using Barotrauma.LuaCs.Data;
 using Barotrauma.Networking;
@@ -128,7 +129,7 @@ public class StorageService : IStorageService
         try
         {
             var path = System.IO.Path.GetFullPath(Path.Combine(
-                ConfigData.LocalPackageDataPath.Replace(ConfigData.LocalDataPathRegex, package.Name).CleanUpPathCrossPlatform(),
+                ConfigData.LocalPackageDataPath.Replace(ConfigData.LocalDataPathRegex, XmlConvert.EncodeLocalName(package.Name)).CleanUpPathCrossPlatform(),
                 localFilePath.CleanUpPathCrossPlatform()));
             if (!path.StartsWith(Path.GetFullPath(ConfigData.LocalDataSavePath)))
                 ThrowHelper.ThrowUnauthorizedAccessException($"{nameof(GetAbsolutePathForLocal)}: The local path of '{path}' is not a local path!");

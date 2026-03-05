@@ -98,7 +98,7 @@ public static class GUIUtil
     public static (GUIScrollBar, GUITextBlock) Slider(GUILayoutGroup parent, Vector2 range, int steps, Func<float, 
         string> labelFunc, float currentValue, Action<float> setter, LocalizedString? tooltip, Vector2 adjustRatio)
     {
-        var layout = new GUILayoutGroup(NewItemRectT(parent, adjustRatio), isHorizontal: true);
+        var layout = new GUILayoutGroup(new RectTransform(adjustRatio, parent.RectTransform), isHorizontal: true);
         var slider = new GUIScrollBar(new RectTransform((0.72f, 1.0f), layout.RectTransform), style: "GUISlider")
         {
             Range = range,

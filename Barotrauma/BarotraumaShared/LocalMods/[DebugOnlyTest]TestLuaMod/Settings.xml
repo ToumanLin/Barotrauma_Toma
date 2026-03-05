@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+  <Settings>
+    <Setting Name="TestTickbox" Type="bool"/>
+    <Setting Name="TestFloat" Type="float"/>
+    <Setting Name="TestHidden" Type="bool" ShowInMenus="false"/>
+    <Setting Name="TestRangeFloat" Type="rangeFloat" Min="0" Max="25" Steps="11"/>
+    <Setting Name="TestRangeInt" Type="rangeInt" Min="0" Max="10" Steps="11"/>
+    <Setting Name="TestString" Type="string" />
+  </Settings>
+  <Profiles>
+    <Profile Name="default">
+      <SettingValue Name="TestTickbox" Value="true"/>
+      <SettingValue Name="TestFloat" Value="5"/>
+      <SettingValue Name="TestHidden" Value="true"/>
+      <SettingValue Name="TestRangeFloat" Value="15"/>
+      <SettingValue Name="TestRangeInt" Value="7"/>
+      <SettingValue Name="TestString" Value="Hello!"/>
+    </Profile>
+    <Profile Name="other">
+      <SettingValue Name="TestTickbox" Value="false"/>
+      <SettingValue Name="TestFloat" Value="9"/>
+      <SettingValue Name="TestHidden" Value="false"/>
+      <SettingValue Name="TestRangeFloat" Value="4"/>
+      <SettingValue Name="TestRangeInt" Value="4"/>
+      <SettingValue Name="TestString" Value="Other loaded!"/>
+    </Profile>
+  </Profiles>
+</Configuration>

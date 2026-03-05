@@ -13,19 +13,20 @@ namespace Barotrauma.LuaCs;
 
 internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
 {
-    private readonly ImmutableArray<ISettingBase> _settingsInstancesGameplay;
+    private ImmutableArray<ISettingBase> _settingsInstancesGameplay;
     // menu vars
     private GUILayoutGroup _modCategoryDisplayGroup, _settingsDisplayGroup;
     private string _selectedSearchQuery = string.Empty;
     private ContentPackage _selectedContentPackage;
     private string _selectedCategory = string.Empty;
+
+    private event Action OnApplyInstalledModsChanges;
     
     public ModsGameplaySettingsMenu(GUIFrame contentFrame, 
         IPackageManagementService packageManagementService, 
         IConfigService configService, 
         SettingsMenu settingsMenuInstance) : base(contentFrame, packageManagementService, configService, settingsMenuInstance)
     {
-
         _settingsInstancesGameplay = configService.GetDisplayableConfigs()
             .Where(s => s is not ISettingControl)
             .ToImmutableArray();
@@ -65,6 +66,21 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
         // default category
         _selectedCategory = "All";
 
+        OnApplyInstalledModsChanges = () =>
+        {
+            _settingsInstancesGameplay = configService.GetDisplayableConfigs()
+                .Where(s => s is not ISettingControl)
+                .ToImmutableArray();
+            if (_selectedContentPackage is not null && !GetTargetPackagesList().Contains(_selectedContentPackage))
+            {
+                _selectedContentPackage = null;
+                _selectedCategory = string.Empty;
+            }
+            
+            GenerateCategoryListDisplay(_modCategoryDisplayGroup, GetTargetPackagesList(), GetDisplayCategoriesList());
+            GenerateSettingsListDisplay(_settingsDisplayGroup, GetDisplaySettingsList());
+        };
+        
         GenerateCategoryListDisplay(_modCategoryDisplayGroup, GetTargetPackagesList(), GetDisplayCategoriesList());
         GenerateSettingsListDisplay(_settingsDisplayGroup, GetDisplaySettingsList());
         
@@ -100,7 +116,7 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
                 .Select(s => s.OwnerPackage)
                 .Concat(new[] { ContentPackageManager.VanillaCorePackage })
                 .Distinct()
-                .OrderBy(p =>  p == ContentPackageManager.VanillaCorePackage ? 1 : 0)
+                .OrderByDescending(p =>  p == ContentPackageManager.VanillaCorePackage ? 0 : 1)
                 .ThenBy(p => p.Name)
                 .ToImmutableArray();
         }
@@ -153,12 +169,33 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
             return package is null || package == ContentPackageManager.VanillaCorePackage ? "All" : package.Name;
         }
 
+        ContentPackage GetCurrentSelectedPackage(ImmutableArray<ContentPackage> packages)
+        {
+            if (_selectedContentPackage is null)
+            {
+                return ContentPackageManager.VanillaCorePackage;
+            }
+            
+            if (packages.Contains(_selectedContentPackage))
+            {
+                return _selectedContentPackage;
+            }
+
+            if (packages.Length > 0)
+            {
+                _selectedContentPackage = packages[0];
+                return packages[0];
+            }
+
+            return null;
+        }
+
         void GenerateCategoryListDisplay(GUILayoutGroup layoutGroup, ImmutableArray<ContentPackage> packagesList, 
             ImmutableArray<string> categories)
         {
             layoutGroup.ClearChildren();
             var packageSelectionList = GUIUtil.Dropdown<ContentPackage>(layoutGroup, cp => GetPackageName(cp), null,
-                packagesList, packagesList.Length > 0 ? packagesList[0] : null, cp =>
+                packagesList, GetCurrentSelectedPackage(packagesList), cp =>
                 {
                     _selectedContentPackage = cp;
                     _selectedCategory = string.Empty; 
@@ -246,6 +283,7 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
         _settingsDisplayGroup?.Parent.RemoveChild(_settingsDisplayGroup);
         _modCategoryDisplayGroup = null;
         _settingsDisplayGroup = null;
+        
     }
 
     public override void ApplyInstalledModChanges()
@@ -258,7 +296,9 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
             }
 
             kvp.Key.TrySetValue(kvp.Value);
+            ConfigService.SaveConfigValue(kvp.Key);
         }
         NewValuesCache.Clear();
+        OnApplyInstalledModsChanges?.Invoke();
     }
 }

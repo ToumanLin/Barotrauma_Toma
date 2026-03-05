@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Xml;
 using Barotrauma.Extensions;
 using Barotrauma.LuaCs.Data;
 using FluentResults;
@@ -20,6 +21,7 @@ public sealed class PackageManagementService : IPackageManagementService
     private IConfigService _configService;
     private ILuaScriptManagementService _luaScriptManagementService;
     private IPluginManagementService _pluginManagementService;
+    private IConsoleCommandsService _commandsService;
 #if CLIENT
     private IUIStylesService _uiStylesService;
 #endif
@@ -44,6 +46,7 @@ public sealed class PackageManagementService : IPackageManagementService
         ILuaScriptManagementService luaScriptManagementService, 
         IPluginManagementService pluginManagementService, 
         IConfigService configService,
+        IConsoleCommandsService commandsService,
 #if CLIENT
         IUIStylesService uiStylesService,
 #endif
@@ -58,6 +61,31 @@ public sealed class PackageManagementService : IPackageManagementService
 #if CLIENT
         _uiStylesService = uiStylesService;
 #endif
+        _commandsService = commandsService;
+        commandsService.RegisterCommand("pms_getxmlname",
+            "Gets the XML encoded name for the given package, as used in localization.",
+            onExecute: args =>
+            {
+                if (args.Length < 1)
+                {
+                    _logger.LogError("Please specify the name of the package.");
+                    return;
+                }
+
+                if (ContentPackageManager.AllPackages.FirstOrDefault(p => p.Name == args[0]) is { } pkg)
+                {
+                    _logger.Log($"Package Xml Name: '{XmlConvert.EncodeLocalName(pkg.Name)}'");
+                    return;
+                }
+                _logger.Log($"Could not find package with the name '{args[0]}'");
+            },
+            getValidArgs: () =>
+            {
+                return new[]
+                {
+                    this._loadedPackages.Keys.Select(p => p.Name).ToArray()
+                };
+            });
     }
     
     public void Dispose()

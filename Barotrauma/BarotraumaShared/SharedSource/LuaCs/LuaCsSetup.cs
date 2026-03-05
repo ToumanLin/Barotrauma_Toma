@@ -9,6 +9,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using AssemblyLoader = Barotrauma.LuaCs.AssemblyLoader;
 
 [assembly: InternalsVisibleTo("ImpromptuInterfaceDynamicAssembly")]
@@ -18,13 +19,14 @@ namespace Barotrauma
     internal delegate void LuaCsMessageLogger(string message);
     internal delegate void LuaCsErrorHandler(Exception ex, LuaCsMessageOrigin origin);
     internal delegate void LuaCsExceptionHandler(Exception ex, LuaCsMessageOrigin origin);
+    
 
     partial class LuaCsSetup : IDisposable, IEventScreenSelected, IEventEnabledPackageListChanged, 
         IEventReloadAllPackages
     {
         private static LuaCsSetup _luaCsSetup;
         public static LuaCsSetup Instance => _luaCsSetup ??= new LuaCsSetup();
-
+        
         private LuaCsSetup()
         {
             if (_luaCsSetup != null)
@@ -35,7 +37,6 @@ namespace Barotrauma
             // == startup
             _servicesProvider = SetupServicesProvider();
             _runStateMachine = SetupStateMachine();
-            _servicesProvider.GetService<HarmonyEventPatchesService>();
             SubscribeToLuaCsEvents();
         }
         

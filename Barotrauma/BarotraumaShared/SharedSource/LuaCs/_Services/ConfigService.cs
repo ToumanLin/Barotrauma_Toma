@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 using Barotrauma.LuaCs.Data;
 using Barotrauma.LuaCs.Events;
@@ -447,9 +448,17 @@ public sealed partial class ConfigService : IConfigService
         using var lck = _operationLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
 
-        if (_storageService.LoadLocalXml(setting.OwnerPackage, SaveDataFileName) is not { } saveFileResult
-            || saveFileResult is { IsFailed: true })
+        if (_storageService.LoadLocalXml(setting.OwnerPackage, SaveDataFileName) is not { } saveFileResult)
         {
+            return FluentResults.Result.Fail(
+                $"{nameof(LoadSavedValueForConfig)}: Could not open save file for setting [{setting.OwnerPackage.Name}.{setting.InternalName}]");
+        }
+        
+        if (saveFileResult is { IsFailed: true })
+        {
+#if DEBUG
+            _logger.LogResults(saveFileResult.ToResult());
+#endif
             return FluentResults.Result.Fail(
                 $"{nameof(LoadSavedValueForConfig)}: Could not open save file for setting [{setting.OwnerPackage.Name}.{setting.InternalName}]");
         }
@@ -460,8 +469,8 @@ public sealed partial class ConfigService : IConfigService
             return FluentResults.Result.Fail($"{nameof(LoadSavedValueForConfig)}: Root invalid for setting [{setting.OwnerPackage.Name}.{setting.InternalName}]");
         }
 
-        if (rootElement.GetChildElement(setting.OwnerPackage.Name, StringComparison.InvariantCulture)
-            ?.GetChildElement(setting.InternalName, StringComparison.InvariantCulture) is not {} cfgValueElement)
+        if (rootElement.GetChildElement(XmlConvert.EncodeLocalName(setting.OwnerPackage.Name.Trim()), StringComparison.InvariantCultureIgnoreCase)
+            ?.GetChildElement(setting.InternalName, StringComparison.InvariantCultureIgnoreCase) is not {} cfgValueElement)
         {
             return FluentResults.Result.Fail($"{nameof(LoadSavedValueForConfig)}: Could not find saved value for setting:[{setting.OwnerPackage.Name}.{setting.InternalName}]");
         }
@@ -547,7 +556,7 @@ public sealed partial class ConfigService : IConfigService
             return FluentResults.Result.Fail($"{nameof(SaveConfigValue)}: Bad save file format for setting: [{setting.OwnerPackage.Name}.{setting.InternalName}]");
         }
 
-        XElement currentTarget = GetOrAddElement(cpCfgValues.Root, setting.OwnerPackage.Name, name => new XElement(name));
+        XElement currentTarget = GetOrAddElement(cpCfgValues.Root, XmlConvert.EncodeLocalName(setting.OwnerPackage.Name.Trim()), name => new XElement(name));
         currentTarget = GetOrAddElement(currentTarget, setting.InternalName, name => new XElement(name));
 
         var ret = setting.GetSerializableValue().Match(str =>

@@ -13,9 +13,15 @@ using static Barotrauma.ContentPackageManager;
 namespace Barotrauma.LuaCs;
 
 [HarmonyPatch]
-internal class HarmonyEventPatchesService : IService
+internal class HarmonyEventPatchesService : ISystem
 {
     public bool IsDisposed { get; private set; }
+    public FluentResults.Result Reset()
+    {
+        Unpatch();
+        Patch();
+        return FluentResults.Result.Ok();
+    }
 
     private static IEventService _eventService;
     private static ILoggerService _loggerService;
@@ -26,12 +32,23 @@ internal class HarmonyEventPatchesService : IService
         _eventService = eventService;
         _loggerService = loggerService;
         Harmony = new Harmony("LuaCsForBarotrauma.Events");
-        Harmony.PatchAll(typeof(HarmonyEventPatchesService));
+        Patch();
+    }
+
+    private void Patch()
+    {
+        this.Harmony?.PatchAll(typeof(HarmonyEventPatchesService));
 #if SERVER
-        Harmony.PatchAll(typeof(HarmonyEventPatchesService.Patch_StartGame_End));
+        this.Harmony?.PatchAll(typeof(HarmonyEventPatchesService.Patch_StartGame_End));
 #endif
     }
 
+    private void Unpatch()
+    {
+        this.Harmony?.UnpatchSelf();
+    }
+
+    
     [HarmonyPatch(typeof(CoroutineManager), nameof(CoroutineManager.Update)), HarmonyPostfix]
     public static void CoroutineManager_Update_Post()
     {
@@ -308,7 +325,7 @@ internal class HarmonyEventPatchesService : IService
     public void Dispose()
     {
         IsDisposed = true;
-        Harmony.UnpatchSelf();
+        this.Harmony?.UnpatchSelf();
     }
 
 #if SERVER

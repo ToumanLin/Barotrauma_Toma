@@ -66,7 +66,8 @@ public abstract class SettingBase : ISettingBase
     {
         new GUITextBox(new RectTransform(relativeSize, layoutGroup.RectTransform), font: GUIStyle.SmallFont)
         {
-            OnEnterPressed = (box, txt) =>
+            Text = GetStringValue(),
+            OnTextChangedDelegate = (box, txt) =>
             {
                 onSerializedValue?.Invoke(txt);
                 return true;

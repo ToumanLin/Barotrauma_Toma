@@ -11,6 +11,9 @@ public class SettingsMenuSystem : ISettingsMenuSystem
     
     private ModsControlsSettingsMenu _controlsMenuInstance;
     private ModsGameplaySettingsMenu _gameplayMenuInstance;
+    private GUIFrame _gameplayContentFrame;
+    private GUIFrame _controlsContentFrame;
+    private SettingsMenu _settingsMenuInstance;
     
     private readonly Harmony _harmony;
     private readonly IPackageManagementService _packageManagementService;
@@ -28,6 +31,7 @@ public class SettingsMenuSystem : ISettingsMenuSystem
     [HarmonyPatch(typeof(SettingsMenu), "CreateModsTab"), HarmonyPostfix]
     private static void SettingsMenu_CreateModsTab_Post(SettingsMenu __instance)
     {
+        SystemInstance._settingsMenuInstance = __instance;
         SystemInstance.CreateSettingsMenu(__instance);
     }
 
@@ -39,13 +43,13 @@ public class SettingsMenuSystem : ISettingsMenuSystem
         var tabGameplayIndex = (SettingsMenu.Tab)tabCount;
         var tabControlsIndex = (SettingsMenu.Tab)tabCount+1;
 
-        var gameplayContentFrame = CreateNewContentTab(tabGameplayIndex, __instance, 
+        _gameplayContentFrame = CreateNewContentTab(tabGameplayIndex, __instance, 
             "SettingsMenuTab.Mods", "LuaCsForBarotrauma.SettingsMenu.ModGameplayButton");
-        var controlsContentFrame = CreateNewContentTab(tabControlsIndex, __instance, 
+        _controlsContentFrame = CreateNewContentTab(tabControlsIndex, __instance, 
             "SettingsMenuTab.Controls", "LuaCsForBarotrauma.SettingsMenu.ModControlsButton");
 
-        _gameplayMenuInstance = new ModsGameplaySettingsMenu(gameplayContentFrame, _packageManagementService, _configService, __instance);
-        _controlsMenuInstance = new ModsControlsSettingsMenu(controlsContentFrame, _packageManagementService, _configService, __instance);
+        _gameplayMenuInstance = new ModsGameplaySettingsMenu(_gameplayContentFrame, _packageManagementService, _configService, __instance);
+        _controlsMenuInstance = new ModsControlsSettingsMenu(_controlsContentFrame, _packageManagementService, _configService, __instance);
     }
     
     private GUIFrame CreateNewContentTab(SettingsMenu.Tab tab, SettingsMenu settingsMenuInstance, string settingsMenuTabName, string settingMenuHoverTextIdent)

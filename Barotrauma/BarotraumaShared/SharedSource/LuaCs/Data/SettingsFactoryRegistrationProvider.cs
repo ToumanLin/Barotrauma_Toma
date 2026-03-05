@@ -34,6 +34,9 @@ public class SettingsEntryRegistrar : ISettingsRegistrationProvider
         RegisterSettingEntry<long>(configService, "long", valueChangePredicate);
         RegisterSettingEntry<ulong>(configService, "ulong", valueChangePredicate);
         RegisterSettingEntry<string>(configService, "string", valueChangePredicate);
+        RegisterSettingEntry<float>(configService, "float", valueChangePredicate);
+        RegisterSettingEntry<float>(configService, "single", valueChangePredicate);
+        RegisterSettingEntry<double>(configService, "double", valueChangePredicate);
         
         // ISettingRangeBase<T>
         configService.RegisterSettingTypeInitializer("rangeInt", cfgInfo =>

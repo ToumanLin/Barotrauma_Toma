@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 using Barotrauma.LuaCs.Data;
 using FluentResults;
@@ -75,7 +76,7 @@ public sealed class SettingsFileParserService :
                 continue;
             }
 
-            var packageIdent = res.path.ContentPackage!.Name;
+            var packageIdent = XmlConvert.EncodeLocalName(res.path.ContentPackage!.Name);
             
             foreach (var element in settingElements)
             {
@@ -108,7 +109,7 @@ public sealed class SettingsFileParserService :
                 };
                 if (!IsInfoValid(newSetting))
                 {
-                    return ReturnFail($"A setting was invalid. ContentPackage: {res.path.ContentPackage}");
+                    return ReturnFail($"A setting was invalid. ContentPackage: {res.path.ContentPackage.Name}. Name: {newSetting?.InternalName}");
                 }
                 parsedInfo.Add(newSetting);
             }
@@ -127,7 +128,6 @@ public sealed class SettingsFileParserService :
         {
             return info.OwnerPackage != null
                    && !info.InternalName.IsNullOrWhiteSpace()
-                   && !info.DataType.IsNullOrWhiteSpace()
                    && !info.DataType.IsNullOrWhiteSpace()
                    && info.Element != null
 #if CLIENT

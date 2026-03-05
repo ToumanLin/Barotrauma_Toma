@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Globalization;
 using System.Xml.Linq;
 using Barotrauma.LuaCs.Data;
 using Microsoft.Toolkit.Diagnostics;
+using Microsoft.Xna.Framework;
 using OneOf;
 
 namespace Barotrauma.LuaCs.Data;
@@ -44,6 +46,19 @@ public class SettingRangeFloat : SettingRangeBase<float>
         }
         return base.TrySetValue(value);
     }
+
+#if CLIENT
+    public override void AddDisplayComponent(GUILayoutGroup layoutGroup, Vector2 relativeSize, Action<string> onSerializedValue)
+    {
+        GUIUtil.Slider(layoutGroup, new Vector2(MinValue, MaxValue), IncrementalSteps, labelFunc: val =>
+        {
+            return val.ToString("G4", CultureInfo.InvariantCulture);
+        }, Value, setter: val =>
+        {
+            onSerializedValue?.Invoke(val.ToString());
+        }, TextManager.Get(this.GetDisplayInfo().Tooltip), relativeSize);
+    }
+#endif
 }
 
 public class SettingRangeInt : SettingRangeBase<int>
@@ -73,4 +88,17 @@ public class SettingRangeInt : SettingRangeBase<int>
         }
         return base.TrySetValue(value);
     }
+
+#if CLIENT
+    public override void AddDisplayComponent(GUILayoutGroup layoutGroup, Vector2 relativeSize, Action<string> onSerializedValue)
+    {
+        GUIUtil.Slider(layoutGroup, new Vector2(MinValue, MaxValue), IncrementalSteps, labelFunc: val =>
+        {
+            return ((int)val).ToString();
+        }, Value, setter: val =>
+        {
+            onSerializedValue?.Invoke(((int)val).ToString());
+        }, TextManager.Get(this.GetDisplayInfo().Tooltip), relativeSize);
+    }
+#endif
 }
