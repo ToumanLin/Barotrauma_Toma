@@ -258,13 +258,15 @@ internal sealed class ModsGameplaySettingsMenu : ModsSettingsMenuBase
             GUIFrame entryFrame = new GUIFrame(new RectTransform(new Vector2(1f, settingHeight), parent));
             GUILayoutGroup entryLayoutGroup = new GUILayoutGroup(new RectTransform(Vector2.One, entryFrame.RectTransform), isHorizontal: true);
 
-            new GUITextBlock(new RectTransform(labelSize, entryLayoutGroup.RectTransform),
+            new GUIFrame(new RectTransform(new Vector2(0.05f, 1f), entryLayoutGroup.RectTransform),
+                color: Color.TransparentBlack);
+            
+            new GUITextBlock(new RectTransform(labelSize - new Vector2(0.05f, 0f), entryLayoutGroup.RectTransform),
                 GetLocalizedString(setting.GetDisplayInfo().DisplayName, setting.GetDisplayInfo().DisplayName),
                 textColor: Color.PeachPuff,
                 font: GUIStyle.SmallFont,
                 textAlignment: Alignment.Left)
             {
-                Padding = new Vector4(0.02f,0,0,0),
                 CanBeFocused = false
             };
 
