@@ -26,7 +26,7 @@ using System.Diagnostics;
 
 namespace Barotrauma.LuaCs;
 
-internal sealed class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
+class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService
 {
     public Script? InternalScript => _script;
 
@@ -335,29 +335,6 @@ internal sealed class LuaScriptManagementService : ILuaScriptManagementService, 
         UserData.RegisterType(typeof(IResourceInfo));
         UserData.RegisterType(typeof(IUserDataDescriptor));
         UserData.RegisterType(typeof(INetworkingService));
-        
-        // Config/Settings
-        UserData.RegisterType(typeof(IConfigService));
-        UserData.RegisterType(typeof(ISettingBase));
-        UserData.RegisterType(typeof(ISettingBase<bool>));
-        UserData.RegisterType(typeof(ISettingBase<string>));
-        UserData.RegisterType(typeof(ISettingBase<byte>));
-        UserData.RegisterType(typeof(ISettingBase<sbyte>));
-        UserData.RegisterType(typeof(ISettingBase<ushort>));
-        UserData.RegisterType(typeof(ISettingBase<short>));
-        UserData.RegisterType(typeof(ISettingBase<char>));
-        UserData.RegisterType(typeof(ISettingBase<uint>));
-        UserData.RegisterType(typeof(ISettingBase<int>));
-        UserData.RegisterType(typeof(ISettingBase<ulong>));
-        UserData.RegisterType(typeof(ISettingBase<long>));
-        UserData.RegisterType(typeof(ISettingBase<float>));
-        UserData.RegisterType(typeof(ISettingBase<double>));
-        UserData.RegisterType(typeof(ISettingRangeBase<float>));
-        UserData.RegisterType(typeof(ISettingRangeBase<int>));
-#if CLIENT
-        UserData.RegisterType(typeof(ISettingControl));
-#endif
-        
 
         new LuaConverters(this).RegisterLuaConverters();
 
