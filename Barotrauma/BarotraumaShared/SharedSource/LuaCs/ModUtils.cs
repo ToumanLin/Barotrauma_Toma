@@ -21,7 +21,7 @@ using Platform = Barotrauma.LuaCs.Data.Platform;
 // ReSharper disable ConvertClosureToMethodGroup
 
 // This file is cursed, we put everything in it, and I'm not sorry about it.
-namespace Barotrauma.LuaCs
+namespace Barotrauma
 {
 
     public static class ModUtils
