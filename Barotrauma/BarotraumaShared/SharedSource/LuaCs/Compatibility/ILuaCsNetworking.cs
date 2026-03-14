@@ -9,6 +9,7 @@ internal interface ILuaCsNetworking : ILuaCsShim
     ushort LastClientListUpdateID { get; set; }
     void HttpRequest(string url, LuaCsAction callback, string data = null, string method = "POST", string contentType = "application/json", Dictionary<string, string> headers = null, string savePath = null);
     void HttpPost(string url, LuaCsAction callback, string data, string contentType = "application/json", Dictionary<string, string> headers = null, string savePath = null);
+    void HttpGet(string url, LuaCsAction callback, Dictionary<string, string> headers = null, string savePath = null);
 
     void Receive(string netId, LuaCsAction action);
 #if SERVER
