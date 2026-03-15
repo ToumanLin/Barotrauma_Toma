@@ -145,6 +145,7 @@ public class PluginManagementService : IAssemblyManagementService
             }
         }
         _pluginInstances.Clear();
+        _pluginPackageLookup.Clear();
         _pluginInjectorContainer?.Dispose();
         _pluginInjectorContainer = null;
         
@@ -194,6 +195,7 @@ public class PluginManagementService : IAssemblyManagementService
     private Lazy<IConfigService> _configService;
     private Lazy<ILuaScriptManagementService> _luaScriptManagementService;
     private readonly ConcurrentDictionary<ContentPackage, IAssemblyLoaderService> _assemblyLoaders = new();
+    private readonly ConcurrentDictionary<Type, ContentPackage> _pluginPackageLookup = new();
     private readonly ConcurrentDictionary<ContentPackage, ImmutableArray<IAssemblyPlugin>> _pluginInstances = new();
     private readonly ConditionalWeakTable<IAssemblyLoaderService, ContentPackage> _unloadingAssemblyLoaders = new();
     private readonly AsyncReaderWriterLock _operationsLock = new();
@@ -226,6 +228,7 @@ public class PluginManagementService : IAssemblyManagementService
         container.Register<ILoggerService>(fac => _logger);
         container.Register<IStorageService>(fac => _storageService);
         container.Register<IEventService>(fac => _eventService.Value);
+        container.Register<IPluginManagementService>(fac => this);
         container.Register<ILuaScriptManagementService>(fac => _luaScriptManagementService.Value);
         container.Register<IConfigService>(fac => _configService.Value);
 
@@ -273,6 +276,11 @@ public class PluginManagementService : IAssemblyManagementService
                 }
             }
         }
+    }
+
+    public bool TryGetPackageForPlugin<TPlugin>(out ContentPackage ownerPackage)
+    {
+        return _pluginPackageLookup.TryGetValue(typeof(TPlugin), out ownerPackage);
     }
 
     public Type GetType(string typeName, bool isByRefType = false, bool includeInterfaces = false,
@@ -375,6 +383,7 @@ public class PluginManagementService : IAssemblyManagementService
                     _pluginInjectorContainer.InjectProperties(plugin);
                     _pluginInjectorContainer.Register(pluginType, fac => plugin);
                     loadedTypes.Add(plugin);
+                    _pluginPackageLookup.TryAdd(pluginType, packageTypes.Key);
                 }
                 catch (Exception e)
                 {
@@ -724,6 +733,7 @@ public class PluginManagementService : IAssemblyManagementService
         }
         
         _pluginInstances.Clear();
+        _pluginPackageLookup.Clear();
         
         return results;
     }

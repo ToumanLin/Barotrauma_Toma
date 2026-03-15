@@ -21,6 +21,14 @@ public interface IPluginManagementService : IReusableService
         bool includeInterfaces = false,
         bool includeAbstractTypes = false,
         bool includeDefaultContext = true);
+
+    /// <summary>
+    /// Gets the <see cref="ContentPackage"/> that contains the plugin type.
+    /// </summary>
+    /// <param name="ownerPackage"></param>
+    /// <typeparam name="TPlugin"></typeparam>
+    /// <returns></returns>
+    bool TryGetPackageForPlugin<TPlugin>(out ContentPackage ownerPackage);
     
     /// <summary>
     /// Tries to find the type given the fully qualified name and filters.
