@@ -15,14 +15,13 @@ namespace Barotrauma
     partial class LuaCsSetup
     {
         private bool _isClientPromptActive;
-        
+
         /// <summary>
-        /// 
+        /// Returns whether execution should continue
         /// </summary>
-        /// <returns>Returns whether execution should continue.</returns>
         public bool CheckReadyToRun()
         {
-            // fast exit if enabled or unavailable.
+            // Fast exit if enabled
             if (this.IsCsEnabled)
             {
                 return true;
@@ -32,10 +31,24 @@ namespace Barotrauma
 
             foreach (ContentPackage cp in PackageManagementService.GetLoadedAssemblyPackages())
             {
+                if (cp.NameMatches(PackageId))
+                {
+                    continue;
+                }
+
                 if (cp.UgcId.TryUnwrap(out ContentPackageId id))
+                {
                     sb.AppendLine($"- {cp.Name} ({id})");
+                }
                 else
+                {
                     sb.AppendLine($"- {cp.Name} (Not On Workshop)");
+                }
+            }
+
+            if (string.IsNullOrEmpty(sb.ToString()))
+            {
+                return true;
             }
 
             if (!_isClientPromptActive)
@@ -44,16 +57,18 @@ namespace Barotrauma
                 if (GameMain.Client == null || GameMain.Client.IsServerOwner)
                 {
                     DisplayCsModsPromptServer(sb);
+                    return true;
                 }
                 else
                 {
                     DisplayCsModsPromptClient(sb);
+                    return false;
                 }
             }
-            
-            return false;
-            
-
+            else
+            {
+                return false;
+            }
 
             void DisplayCsModsPromptServer(StringBuilder sb)
             {
@@ -104,6 +119,8 @@ namespace Barotrauma
                         // avoid a TOCTOU scenario.
                         this.IsCsEnabled = false;
                         this._isClientPromptActive = false;
+                        SetRunState(RunState.LoadedNoExec);
+                        SetRunState(RunState.Running);
                         return true;
                     }
                     finally

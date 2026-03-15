@@ -24,6 +24,8 @@ namespace Barotrauma
     partial class LuaCsSetup : IDisposable, IEventScreenSelected, IEventEnabledPackageListChanged, 
         IEventReloadAllPackages
     {
+        public const string PackageId = "LuaCsForBarotrauma";
+
         private static LuaCsSetup _luaCsSetup;
         public static LuaCsSetup Instance => _luaCsSetup ??= new LuaCsSetup();
         
@@ -145,9 +147,9 @@ namespace Barotrauma
 
         void LoadLuaCsConfig()
         {
-            var luaCsPackage = ContentPackageManager.EnabledPackages.Regular.FirstOrDefault(cp => cp.NameMatches("LuaCsForBarotrauma"), null)
-                ?? ContentPackageManager.LocalPackages.FirstOrDefault(cp => cp.NameMatches("LuaCsForBarotrauma"))
-                ?? ContentPackageManager.WorkshopPackages.FirstOrDefault(cp => cp.NameMatches("LuaCsForBarotrauma"));
+            var luaCsPackage = ContentPackageManager.EnabledPackages.Regular.FirstOrDefault(cp => cp.NameMatches(PackageId), null)
+                ?? ContentPackageManager.LocalPackages.FirstOrDefault(cp => cp.NameMatches(PackageId))
+                ?? ContentPackageManager.WorkshopPackages.FirstOrDefault(cp => cp.NameMatches(PackageId));
             
             _isCsEnabled = 
                 ConfigService.TryGetConfig<ISettingBase<bool>>(luaCsPackage, "IsCsEnabled", out var val1)
