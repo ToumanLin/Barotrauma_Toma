@@ -99,6 +99,7 @@ public class PluginManagementService : IAssemblyManagementService
                             !ass.GetName().FullName.StartsWith("BarotraumaCore") &&
                             !ass.GetName().FullName.StartsWith("Barotrauma") &&
                             !ass.GetName().FullName.StartsWith("DedicatedServer"))
+                        .Where(ass => !ass.Location.IsNullOrWhiteSpace())
                         .Select(MetadataReference (ass) => MetadataReference.CreateFromFile(ass.Location)))
                     .Where(ar => ar is not null)
                     .ToImmutableArray();
