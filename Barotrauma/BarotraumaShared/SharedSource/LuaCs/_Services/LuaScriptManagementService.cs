@@ -469,7 +469,7 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService,
 
     public FluentResults.Result DisposePackageResources(ContentPackage package)
     {
-        return FluentResults.Result.Fail("Not supported for Lua");
+        return FluentResults.Result.Ok();
     }
 
     public FluentResults.Result DisposeAllPackageResources()
