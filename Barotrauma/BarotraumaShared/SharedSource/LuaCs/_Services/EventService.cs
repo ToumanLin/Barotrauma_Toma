@@ -264,7 +264,7 @@ public partial class EventService : IEventService
     public void Unsubscribe<T>(T subscriber) where T : class, IEvent
     {
         Guard.IsNotNull(subscriber, nameof(subscriber));
-        using var lck = _operationsLock.AcquireWriterLock().ConfigureAwait(false).GetAwaiter().GetResult();
+        using var lck = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
 
         if (!_subscribers.TryGetValue(typeof(T), out var evtSubscribers))
