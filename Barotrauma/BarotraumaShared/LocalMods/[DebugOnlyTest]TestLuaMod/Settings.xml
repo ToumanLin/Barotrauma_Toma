@@ -8,6 +8,14 @@
     <Setting Name="TestRangeInt" Type="rangeInt" Min="0" Max="10" Steps="11"/>
     <Setting Name="TestString" Type="string" />
     <Setting Name="TestControl" Type="control" Value="A"/>
+    <Setting Name="TestDropdownList" Type="listString" Value="Hi">
+      <Values>
+        <Value Value="Entry A"/>
+        <Value Value="Entry B"/>
+        <Value Value="Hi"/>
+        <Value Value="YourMom"/>
+      </Values>
+    </Setting>
   </Settings>
   <Profiles>
     <Profile Name="default">
