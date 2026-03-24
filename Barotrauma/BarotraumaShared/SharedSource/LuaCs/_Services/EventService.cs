@@ -280,7 +280,7 @@ public partial class EventService : IEventService
 
     public void ClearAllEventSubscribers<T>() where T : class, IEvent
     {
-        using  var lck = _operationsLock.AcquireWriterLock().ConfigureAwait(false).GetAwaiter().GetResult();
+        using  var lck = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
         _subscribers.TryRemove(typeof(T), out _);
     }
@@ -329,7 +329,7 @@ public partial class EventService : IEventService
 
     public void AddDispatcherEventService(IEventService eventService)
     {
-        using var lck = _operationsLock.AcquireWriterLock().ConfigureAwait(false).GetAwaiter().GetResult();
+        using var lck = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
 
         _subscribedEventDispatchers.TryAdd(eventService, eventService);
@@ -337,7 +337,7 @@ public partial class EventService : IEventService
 
     public void RemoveDispatcherEventService(IEventService eventService)
     {
-        using var lck = _operationsLock.AcquireWriterLock().ConfigureAwait(false).GetAwaiter().GetResult();
+        using var lck = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
         
         _subscribedEventDispatchers.TryRemove(eventService, out _);
