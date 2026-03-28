@@ -366,12 +366,12 @@ public partial class EventService : IEventService
 
     public bool RemovePatch(string identifier, string className, string methodName, string[] parameterTypes, LuaCsHook.HookMethodType hookType)
     {
-        return _luaPatcher.RemovePatch(className, methodName, methodName, parameterTypes, hookType);
+        return _luaPatcher.RemovePatch(className, className, methodName, parameterTypes, hookType);
     }
 
     public bool RemovePatch(string identifier, string className, string methodName, LuaCsHook.HookMethodType hookType)
     {
-        return _luaPatcher.RemovePatch(className, methodName, methodName, hookType);
+        return _luaPatcher.RemovePatch(className, className, methodName, hookType);
     }
 
     public void HookMethod(string identifier, MethodBase method, LuaCsPatch patch, LuaCsHook.HookMethodType hookType = LuaCsHook.HookMethodType.Before, IAssemblyPlugin owner = null)
