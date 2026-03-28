@@ -3,6 +3,7 @@ using Barotrauma.LuaCs.Compatibility;
 using Barotrauma.LuaCs.Data;
 using Barotrauma.LuaCs.Events;
 using LightInject;
+using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -383,6 +384,7 @@ namespace Barotrauma
         public ILuaCsHook Hook => this.EventService;
         public INetworkingService Networking => this.NetworkingService;
         public ILuaCsTimer Timer => _servicesProvider.GetService<ILuaCsTimer>();
+        public DynValue CallLuaFunction(object function, params object[] args) => LuaScriptManagementService.CallFunctionSafe(function, args);
 
         #endregion
 
