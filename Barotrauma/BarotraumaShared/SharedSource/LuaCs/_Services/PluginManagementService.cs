@@ -588,7 +588,7 @@ public class PluginManagementService : IAssemblyManagementService
                         syntaxTreesBuilder.Add(SyntaxFactory.ParseSyntaxTree(
                             text: sourceCode,
                             options: ScriptParseOptions,
-                            path: null,
+                            path: resourcePath.FullPath,
                             encoding: Encoding.Default,
                             cancellationToken: token
                         ));
