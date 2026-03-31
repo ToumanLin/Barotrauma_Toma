@@ -364,10 +364,15 @@ namespace Barotrauma
                     CoroutineManager.Update(paused: false, (float)Timing.Step);
 
                     performanceCounterTimer.Stop();
+                    if (LuaCsSetup.Instance.PerformanceCounterService.EnablePerformanceCounter)
+                    {
+                        LuaCsSetup.Instance.PerformanceCounterService.AddElapsedTicks(new SimplePerformanceData("Update", performanceCounterTimer.ElapsedTicks));
+                    }
                     if (LuaCsSetup.Instance.PerformanceCounter.EnablePerformanceCounter)
                     {
-                        LuaCsSetup.Instance.PerformanceCounter.AddElapsedTicks(new SimplePerformanceData("Update", performanceCounterTimer.ElapsedTicks));
+                        LuaCsSetup.Instance.PerformanceCounter.UpdateElapsedTime = (double)performanceCounterTimer.ElapsedTicks / Stopwatch.Frequency;
                     }
+                    
                     performanceCounterTimer.Reset();
 
                     Timing.Accumulator -= Timing.Step;

@@ -68,8 +68,9 @@ namespace Barotrauma
          */
         
         private readonly IServicesProvider _servicesProvider;
-        
-        public PerformanceCounterService PerformanceCounter => _servicesProvider.GetService<PerformanceCounterService>();
+
+        private PerformanceCounterService _performanceCounterService;
+        public PerformanceCounterService PerformanceCounterService => _performanceCounterService ??= _servicesProvider.GetService<PerformanceCounterService>();
         public ILoggerService Logger => _servicesProvider.GetService<ILoggerService>();
         public IConfigService ConfigService => _servicesProvider.GetService<IConfigService>();
         public IPackageManagementService PackageManagementService => _servicesProvider.GetService<IPackageManagementService>();
@@ -82,8 +83,8 @@ namespace Barotrauma
         // hotpath performance ref cache
         private LuaGame _game;
         public LuaGame Game => _game ??= _servicesProvider.GetService<LuaGame>();
-        
 
+        
         /// <summary>
         /// Whether C# plugin code is enabled.
         /// </summary>
@@ -381,6 +382,17 @@ namespace Barotrauma
         
         #region LegacyRedirects
 
+        // --- Compatibility
+        /// <summary>
+        /// <b>[Obsolete]</b> Legacy support only.
+        /// </summary>
+        [Obsolete]
+        public LuaCsPerformanceCounter PerformanceCounter { get; private set; } = new LuaCsPerformanceCounter();
+        /// <summary>
+        /// <b>[Obsolete] Use <see cref="IPluginManagementService"/> instead.</b>
+        /// </summary>
+        [Obsolete($"Use {nameof(PluginManagementService)} instead.")]
+        public IPluginManagementService PluginPackageManager => this.PluginManagementService;
         public ILuaCsHook Hook => this.EventService;
         public INetworkingService Networking => this.NetworkingService;
         public ILuaCsTimer Timer => _servicesProvider.GetService<ILuaCsTimer>();
@@ -413,6 +425,7 @@ namespace Barotrauma
                 
                 _eventService = null;
                 _game = null;
+                PerformanceCounter =  null;
                 _servicesProvider.DisposeAndReset();
             }
             catch (Exception e)
