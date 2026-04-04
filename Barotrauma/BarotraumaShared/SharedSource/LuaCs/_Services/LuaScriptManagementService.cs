@@ -412,6 +412,7 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService,
 
         _script.Globals["ExecutionNumber"] = 0;
         _script.Globals["CSActive"] = !enableSandbox;
+        ((Table)_script.Globals["debug"])["breakpoint"] = () => { Debugger.Break(); };
 
         _script.Globals["SERVER"] = LuaCsSetup.IsServer;
         _script.Globals["CLIENT"] = LuaCsSetup.IsClient;
