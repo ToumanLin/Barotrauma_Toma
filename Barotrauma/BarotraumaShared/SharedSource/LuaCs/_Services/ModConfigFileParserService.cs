@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Barotrauma.LuaCs.Data;
+using FarseerPhysics.Common;
 using FluentResults;
 using Microsoft.Toolkit.Diagnostics;
 
@@ -191,7 +192,14 @@ public sealed partial class ModConfigFileParserService :
             }
             else
             {
-                res.WithError($"{srcOwner.Name}: The file '{filePath}' is missing!");
+                if (srcElement.GetAttributeBool("IsFileRequired", true))
+                {
+                    res.WithError($"{srcOwner.Name}: The file '{filePath}' is missing!");    
+                }
+                else
+                {
+                    res.WithSuccess($"Skipped missing not-required file: '{filePath}'");
+                }
             }
         }
 
@@ -200,10 +208,28 @@ public sealed partial class ModConfigFileParserService :
             if (_storageService.DirectoryExists(folderPath.FullPath) is { IsSuccess: true, Value: true })
             {
                 var files = _storageService.FindFilesInPackage(srcOwner, folderPath.Value, fileExtension, true);
+                if (files.IsFailed)
+                {
+                    res.WithError($"{srcOwner.Name}: Failed to load files from {folderPath}!");
+                }
+                else
+                {
+                    foreach (var file in files.Value)
+                    {
+                        builder.Add(ContentPath.FromRaw(srcOwner, $"%ModDir%/{System.IO.Path.GetRelativePath(System.IO.Path.GetFullPath(srcOwner.Dir), file)}"));
+                    }
+                }
             }
             else
             {
-                res.WithError($"{srcOwner.Name}: The folder '{filePath}' is missing!");
+                if (srcElement.GetAttributeBool("IsFileRequired", true))
+                {
+                    res.WithError($"{srcOwner.Name}: The file '{folderPath}' is missing!");    
+                }
+                else
+                {
+                    res.WithSuccess($"Skipped missing not-required folder: '{folderPath}'");
+                }
             }
         }
 
