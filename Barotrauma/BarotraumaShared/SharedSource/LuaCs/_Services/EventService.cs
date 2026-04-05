@@ -134,6 +134,7 @@ public partial class EventService : IEventService
         return Call<object>(eventName, args);
     }
 
+    [MoonSharpHidden] // Needs to be hidden so Lua doesn't accidentally use this instead of the above
     public T Call<T>(string eventName, params object[] args)
     {
         Guard.IsNotNullOrWhiteSpace(eventName, nameof(eventName));
