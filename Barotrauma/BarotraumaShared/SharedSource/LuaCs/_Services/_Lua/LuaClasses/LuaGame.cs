@@ -135,6 +135,8 @@ namespace Barotrauma.LuaCs
             }
         }
 
+        public List<DebugConsole.Command> Commands => DebugConsole.Commands;
+
         public bool? ForceVoice = null;
         public bool? ForceLocalVoice = null;
 
