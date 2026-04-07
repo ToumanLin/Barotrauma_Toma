@@ -320,6 +320,7 @@ public sealed class ModConfigService : IModConfigService
 
             foreach (var searchPathways in srcSearchInd)
             {
+                // we have architecture dependent files as well
                 if (_storageService.FindFilesInPackage(srcPackage, searchPathways.SubFolder, "*.cs",
                         true) is { IsSuccess: true, Value.IsDefaultOrEmpty: false } result)
                 {
@@ -334,6 +335,25 @@ public sealed class ModConfigService : IModConfigService
                             .Select(fp => ContentPath.FromRaw(srcPackage, 
                                 $"%ModDir%/{Path.GetRelativePath(srcPackage.Dir, fp)}".CleanUpPathCrossPlatform()))
                             .Concat(sharedFiles).ToImmutableArray(),
+                        FriendlyName = IAssemblyLoaderService.InternalsAwareAssemblyName,
+                        IncompatiblePackages = ImmutableArray<Identifier>.Empty,
+                        RequiredPackages = ImmutableArray<Identifier>.Empty,
+                        UseInternalAccessName = true,
+                        IsScript = true,
+                        IsReferenceModeOnly = false
+                    });
+                }
+                // add the shared files by themselves
+                else if (!sharedFiles.IsDefaultOrEmpty)
+                {
+                    builder.Add(new AssemblyResourceInfo()
+                    {
+                        OwnerPackage = srcPackage,
+                        InternalName = searchPathways.SubFolder,
+                        SupportedPlatforms = searchPathways.Platforms,
+                        SupportedTargets = searchPathways.Targets,
+                        LoadPriority = 0,
+                        FilePaths = sharedFiles,
                         FriendlyName = IAssemblyLoaderService.InternalsAwareAssemblyName,
                         IncompatiblePackages = ImmutableArray<Identifier>.Empty,
                         RequiredPackages = ImmutableArray<Identifier>.Empty,
