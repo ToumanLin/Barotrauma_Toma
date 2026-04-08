@@ -158,6 +158,7 @@ namespace Barotrauma
             servicesProvider.RegisterServiceType<HarmonyEventPatchesService, HarmonyEventPatchesService>(ServiceLifetime.Singleton);
             servicesProvider.RegisterServiceType<IConsoleCommandsService, ConsoleCommandsService>(ServiceLifetime.Transient);
             servicesProvider.RegisterServiceType<MainMenuPatch, MainMenuPatch>(ServiceLifetime.Singleton);
+            servicesProvider.RegisterServiceResolver<ILuaConfigService>(factory => factory.GetInstance<IConfigService>() as ILuaConfigService);
 
             // Extension/Sub Services
             servicesProvider.RegisterServiceType<IAssemblyLoaderService.IFactory, AssemblyLoader.Factory>(ServiceLifetime.Transient);

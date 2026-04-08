@@ -29,6 +29,7 @@ public sealed class PackageManagementService : IPackageManagementService
     // state
     private readonly ConcurrentDictionary<ContentPackage, IModConfigInfo> _loadedPackages = new();
     private readonly ConcurrentDictionary<ContentPackage, IModConfigInfo> _runningPackages = new();
+    private readonly ConcurrentDictionary<string, ContentPackage> _packageNameCache = new();
     // control
     /// <summary>
     /// Service Disposal Lock.
@@ -141,12 +142,25 @@ public sealed class PackageManagementService : IPackageManagementService
 #endif
             _runningPackages.Clear();
             _loadedPackages.Clear();
+            _packageNameCache.Clear();
             return operationResult;
         }
         catch (Exception e)
         {
             return FluentResults.Result.Fail(new ExceptionalError(e));
         }
+    }
+
+    public bool TryGetLoadedPackageByName(string name, out ContentPackage package)
+    {
+        package = null;
+        if (name.IsNullOrWhiteSpace())
+        {
+            return false;
+        }
+        
+        using var _ = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
+        return _packageNameCache.TryGetValue(name, out package);
     }
 
     public FluentResults.Result LoadPackageInfo(ContentPackage package)
@@ -232,6 +246,7 @@ public sealed class PackageManagementService : IPackageManagementService
         }
         
         _loadedPackages[package] = config;
+        _packageNameCache[package.Name] = package;
         try
         {
             var res = new FluentResults.Result();
@@ -435,6 +450,7 @@ public sealed class PackageManagementService : IPackageManagementService
         result.WithReasons(_uiStylesService.UnloadPackage(package).Reasons);  
 #endif
         _loadedPackages.TryRemove(package, out _);
+        _packageNameCache.TryRemove(package.Name, out _);
         return result;
     }
     

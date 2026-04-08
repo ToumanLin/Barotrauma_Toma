@@ -12,6 +12,7 @@ namespace Barotrauma.LuaCs;
 
 public interface IPackageManagementService : IReusableService
 {
+    public bool TryGetLoadedPackageByName(string name, out ContentPackage package);
     public FluentResults.Result LoadPackageInfo(ContentPackage package);
     public FluentResults.Result LoadPackagesInfo(ImmutableArray<ContentPackage> packages);
     public FluentResults.Result ExecuteLoadedPackages(ImmutableArray<ContentPackage> executionOrder, bool executeCsAssemblies);

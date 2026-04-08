@@ -52,7 +52,9 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService,
     private readonly IPluginManagementService _pluginManagementService;
     private readonly INetworkingService _networkingService;
     private readonly IConsoleCommandsService _commandsService;
+    private readonly ILuaConfigService _configService;
     private readonly ILuaCsInfoProvider _luaCsInfoProvider;
+    private readonly Lazy<IPackageManagementService> _packageManagementService;
     //private readonly ILuaCsUtility _luaCsUtility;
 
     public LuaScriptManagementService(
@@ -69,7 +71,9 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService,
         //ILuaCsUtility luaCsUtility,
         ILuaCsTimer luaCsTimer,
         IConsoleCommandsService commandsService,
-        ILuaCsInfoProvider luaCsInfoProvider)
+        ILuaCsInfoProvider luaCsInfoProvider, 
+        ILuaConfigService configService, 
+        Lazy<IPackageManagementService> packageManagementService)
     {
         _luaScriptLoader = loader;
         _userDataService = userDataService;
@@ -84,6 +88,8 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService,
         _eventService = eventService;
         _commandsService = commandsService;
         _luaCsInfoProvider = luaCsInfoProvider;
+        _configService = configService;
+        _packageManagementService = packageManagementService;
         _luaCsTimer = luaCsTimer;
 
         RegisterLuaEvents();
@@ -379,7 +385,10 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService,
         _script.Globals["Hook"] = _eventService;
         _script.Globals["Timer"] = _luaCsTimer;
         _script.Globals["File"] = UserData.CreateStatic<LuaCsFile>();
+        _script.Globals["ConfigService"] = _configService;
         _script.Globals["Networking"] = _networkingService;
+        _script.Globals["trygetpackage"] = (string name, out ContentPackage package) =>
+            _packageManagementService.Value.TryGetLoadedPackageByName(name, out package);
         //_script.Globals["Steam"] = Steam;
 
         if (enableSandbox)
