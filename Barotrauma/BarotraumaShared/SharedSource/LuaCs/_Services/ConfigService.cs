@@ -162,7 +162,7 @@ public sealed partial class ConfigService : IConfigService
         _commandsService = commandsService;
         _infoProvider = infoProvider;
 
-        _storageService.UseCaching = true;
+        _storageService.UseCaching = false;
         InjectCommands(commandsService);
     }
 
