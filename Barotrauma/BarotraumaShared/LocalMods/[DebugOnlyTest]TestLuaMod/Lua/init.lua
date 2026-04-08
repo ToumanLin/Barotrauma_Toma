@@ -36,4 +36,8 @@ Hook.Add("think", "printconfig", function()
 
     lastTime = Timer.Time + 10
     print(config.Value)
+
+    if SERVER then
+        config.TrySetValue(config.Value + 1)
+    end
 end)
