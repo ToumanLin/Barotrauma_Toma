@@ -104,7 +104,7 @@ public partial class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyn
 
     public override Type GetValueType() => typeof(T);
 
-    public override string GetStringValue() => Value.ToString();
+    public override string GetStringValue() => Value?.ToString() ?? string.Empty;
     
     public override string GetDefaultStringValue() => DefaultValue.ToString();
 
