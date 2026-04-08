@@ -348,8 +348,17 @@ internal partial class NetworkingService : INetworkingService
         HttpRequest(url, callback, data, "POST", contentType, headers, savePath);
     }
 
+    public void RequestPostHTTP(string url, LuaCsAction callback, string data, string contentType = "application/json", Dictionary<string, string> headers = null, string savePath = null)
+    {
+        HttpRequest(url, callback, data, "POST", contentType, headers, savePath);
+    }
 
     public void HttpGet(string url, LuaCsAction callback, Dictionary<string, string> headers = null, string savePath = null)
+    {
+        HttpRequest(url, callback, null, "GET", null, headers, savePath);
+    }
+
+    public void RequestGetHTTP(string url, LuaCsAction callback, Dictionary<string, string> headers = null, string savePath = null)
     {
         HttpRequest(url, callback, null, "GET", null, headers, savePath);
     }

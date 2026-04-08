@@ -366,6 +366,7 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService,
         UserData.RegisterType(typeof(IResourceInfo));
         UserData.RegisterType(typeof(IUserDataDescriptor));
         UserData.RegisterType(typeof(INetworkingService));
+        UserData.RegisterType(typeof(IConfigService));
 
         new LuaConverters(this).RegisterLuaConverters();
 
