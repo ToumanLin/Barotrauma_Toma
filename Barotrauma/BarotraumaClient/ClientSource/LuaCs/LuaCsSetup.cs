@@ -129,7 +129,7 @@ namespace Barotrauma
                 new GUITextBlock(new RectTransform(new Vector2(1f, 1f), packageFrame.RectTransform), package.Name);
             }
 
-            new GUITextBlock(new RectTransform(new Vector2(1.0f, 0f), msgBoxLayout.RectTransform), "CSharp mods are not sandboxed, meaning that they have unrestrictive access to your computer, please make sure you trust these mods before you continue. If you are not hosting a server, selecting cancel will only run Lua-mods.", wrap: true)
+            new GUITextBlock(new RectTransform(new Vector2(1.0f, 0f), msgBoxLayout.RectTransform), "C# mods are not sandboxed, meaning that they have unrestrictive access to your computer, please make sure you trust these mods before you continue. If you are not hosting a server, selecting cancel will only run Lua mods.", wrap: true)
             {
                 Wrap = true
             };

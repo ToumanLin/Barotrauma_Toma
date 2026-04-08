@@ -230,8 +230,14 @@ namespace Barotrauma
 
             CoroutineManager.Invoke(() =>
             {
+#if CLIENT
+                bool prevCsEnabled = _isCsEnabledForSession;
+#endif
                 var state = CurrentRunState;
                 SetRunState(RunState.Unloaded);
+#if CLIENT
+                _isCsEnabledForSession = prevCsEnabled;
+#endif
                 SetRunState(state);
             });
         }
