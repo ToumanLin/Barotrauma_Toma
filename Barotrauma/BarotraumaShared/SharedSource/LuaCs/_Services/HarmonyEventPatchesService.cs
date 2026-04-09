@@ -244,7 +244,6 @@ internal class HarmonyEventPatchesService : ISystem
         {
             Connection recipient = wire.OtherConnection(__instance);
             if (recipient == null) { continue; }
-            if (recipient.Item == __instance.Item || signal.source?.LastSentSignalRecipients.LastOrDefault() == recipient) { continue; }
 
             _eventService.PublishEvent<IEventSignalReceived>(x => x.OnSignalReceived(signal, recipient));
             _eventService.Call("signalReceived." + recipient.Item.Prefab.Identifier, signal, recipient);
