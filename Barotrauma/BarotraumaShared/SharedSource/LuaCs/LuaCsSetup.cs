@@ -83,7 +83,7 @@ namespace Barotrauma
         // hotpath performance ref cache
         private LuaGame _game;
         public LuaGame Game => _game ??= _servicesProvider.GetService<LuaGame>();
-
+        public Script Lua => LuaScriptManagementService.InternalScript;
 
         /// <summary>
         /// Whether C# plugin code is enabled.
