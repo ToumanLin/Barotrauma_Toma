@@ -13,7 +13,23 @@ partial class NetworkingService : INetworkingService, IEventServerConnected, IEv
 
     public void OnServerConnected()
     {
+        ActivateNetVars();
         SendSyncMessage();
+    }
+
+    private void ActivateNetVars()
+    {
+        if (GameMain.Client == null)
+        {
+            return;
+        }
+        
+        // re-activate net vars
+        // todo: unregister net vars on client disconnect, currently handled by unloading the state machine.
+        foreach (var networkSyncVar in netVars.Keys)
+        {
+            networkSyncVar.SetNetworkOwner(this);
+        }
     }
 
     public void OnReceivedServerNetMessage(IReadMessage netMessage, ServerPacketHeader serverPacketHeader)
@@ -44,7 +60,7 @@ partial class NetworkingService : INetworkingService, IEventServerConnected, IEv
     private void SendSyncMessage()
     {
         if (GameMain.Client == null) { return; }
-
+        
         WriteOnlyMessage message = new WriteOnlyMessage();
         message.WriteByte((byte)ClientHeader);
         message.WriteByte((byte)ClientToServer.RequestSync);

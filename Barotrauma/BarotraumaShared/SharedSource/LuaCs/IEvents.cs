@@ -947,6 +947,8 @@ interface IEventInventoryItemSwap : IEvent<IEventInventoryItemSwap>
 
 #region Networking
 
+
+
 #region Networking-Server
 #if SERVER
 public interface IEventClientRawNetMessageReceived : IEvent<IEventClientRawNetMessageReceived>

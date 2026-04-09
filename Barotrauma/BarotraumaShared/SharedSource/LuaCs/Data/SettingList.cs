@@ -91,7 +91,11 @@ public class SettingList<T> : SettingEntry<T>, ISettingList<T> where T : IEquata
 
     public bool TrySetValueByIndex(int index)
     {
-        throw new NotImplementedException();
+        if (_valuesList.Count <= index)
+        {
+            return false;
+        }
+        return base.TrySetValue(_valuesList[index]);
     }
 
     public IReadOnlyList<T> Options => _valuesList.AsReadOnly();

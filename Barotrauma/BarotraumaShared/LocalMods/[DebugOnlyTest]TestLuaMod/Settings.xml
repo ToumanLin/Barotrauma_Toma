@@ -2,6 +2,8 @@
 <Configuration>
   <Settings>
     <Setting Name="TestTickbox" Type="bool"/>
+	<Setting Name="TestSynchroClient" Type="int" NetSync="TwoWay" />
+	<Setting Name="TestSynchroServer" Type="int" NetSync="ServerAuthority" />
     <Setting Name="TestFloat" Type="float" NetSync="ServerAuthority" />
     <Setting Name="TestHidden" Type="bool" ShowInMenus="false"/>
     <Setting Name="TestRangeFloat" Type="rangeFloat" Min="0" Max="25" Steps="11"/>
