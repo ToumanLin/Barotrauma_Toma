@@ -2,7 +2,7 @@
 <Configuration>
   <Settings>
     <Setting Name="TestTickbox" Type="bool"/>
-    <Setting Name="TestFloat" Type="float"/>
+    <Setting Name="TestFloat" Type="float" NetSync="ServerAuthority" />
     <Setting Name="TestHidden" Type="bool" ShowInMenus="false"/>
     <Setting Name="TestRangeFloat" Type="rangeFloat" Min="0" Max="25" Steps="11"/>
     <Setting Name="TestRangeInt" Type="rangeInt" Min="0" Max="10" Steps="11"/>
