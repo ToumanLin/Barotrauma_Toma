@@ -448,8 +448,10 @@ namespace Barotrauma.LuaCs
 
         public bool IsDisposed => throw new NotImplementedException();
 
-        public void AssignOnExecute(string names, LuaCsAction onExecute) => 
-            _consoleCommands.AssignOnExecute(names, args => onExecute(args));
+        public void AssignOnExecute(string names, object onExecute) => DebugConsole.AssignOnExecute(names, (string[] args) => 
+        { 
+            LuaCsSetup.Instance.LuaScriptManagementService.CallFunctionSafe(onExecute, new object[] { args }); 
+        });
 
         public void SaveGame(string path)
         {
