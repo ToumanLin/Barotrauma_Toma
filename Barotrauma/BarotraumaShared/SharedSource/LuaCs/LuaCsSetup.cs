@@ -139,6 +139,13 @@ namespace Barotrauma
                 ConfigService.TryGetConfig<ISettingBase<bool>>(luaCsPackage, "UseCaching", out var val5)
                     ? val5
                     : null;
+
+            if (!ContentPackageManager.EnabledPackages.All.Contains(luaCsPackage))
+            {
+                // sorry perfidius (not sorry)
+                luaCsPackage.UnloadFilesOfType<TextFile>();
+                luaCsPackage.LoadFilesOfType<TextFile>();
+            }
         }
         
         private IServicesProvider SetupServicesProvider()
