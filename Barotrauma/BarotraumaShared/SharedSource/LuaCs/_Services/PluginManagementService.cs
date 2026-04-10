@@ -129,6 +129,7 @@ public class PluginManagementService : IAssemblyManagementService
         _logger = null;
         _configService = null;
         _luaScriptManagementService = null;
+        _luaCsInfoProvider = null;
         
         GC.SuppressFinalize(this);
     }
@@ -199,6 +200,7 @@ public class PluginManagementService : IAssemblyManagementService
     private IEventService _pluginEventService;
     private Lazy<ILuaPatcher> _pluginLuaPatcherService;
     private Func<IConsoleCommandsService> _consoleCommandServiceFactory;
+    private ILuaCsInfoProvider _luaCsInfoProvider;
     private readonly ConcurrentDictionary<ContentPackage, IAssemblyLoaderService> _assemblyLoaders = new();
     private readonly ConcurrentDictionary<Type, ContentPackage> _pluginPackageLookup = new();
     private readonly ConcurrentDictionary<ContentPackage, ImmutableArray<IAssemblyPlugin>> _pluginInstances = new();
@@ -215,7 +217,8 @@ public class PluginManagementService : IAssemblyManagementService
         Lazy<ILuaScriptManagementService> luaScriptManagementService, 
         Lazy<IConfigService> configService, 
         Lazy<ILuaPatcher> pluginLuaPatcherService, 
-        Func<IConsoleCommandsService> consoleCommandServiceFactory)
+        Func<IConsoleCommandsService> consoleCommandServiceFactory, 
+        ILuaCsInfoProvider luaCsInfoProvider)
     {
         _assemblyLoaderFactory = assemblyLoaderFactory;
         _storageService = storageService;
@@ -225,6 +228,7 @@ public class PluginManagementService : IAssemblyManagementService
         _configService = configService;
         _pluginLuaPatcherService = pluginLuaPatcherService;
         _consoleCommandServiceFactory = consoleCommandServiceFactory;
+        _luaCsInfoProvider = luaCsInfoProvider;
     }
 
     private ServiceContainer CreatePluginServiceContainer()
@@ -485,6 +489,12 @@ public class PluginManagementService : IAssemblyManagementService
         }
         using var lck = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
+
+        _storageService.UseCaching = _luaCsInfoProvider.UseCaching;
+        if (!_luaCsInfoProvider.UseCaching)
+        {
+            _storageService.PurgeCache();
+        }
         
         var orderedContentPacks = resources.GroupBy(res => res.OwnerPackage)
             .OrderBy(res => resources.FindIndex(r2 => r2.OwnerPackage == res.Key))
