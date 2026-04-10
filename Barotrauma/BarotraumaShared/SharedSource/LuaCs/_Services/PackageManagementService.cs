@@ -357,11 +357,7 @@ public sealed class PackageManagementService : IPackageManagementService
         {
             _runningPackages[package.Key] = package.Value;
         }
-
-        if (result.IsFailed)
-        {
-            _logger.LogResults(result);
-        }
+        
         return result;
     }
     

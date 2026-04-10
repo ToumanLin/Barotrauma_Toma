@@ -186,14 +186,13 @@ public partial class LoggerService : ILoggerService
                 else
                 {
                     LogError($"FluentResults::IError: {error.Message}");
-                }
-
-                if (error.Reasons != null)
-                {
-                    foreach (var reason in error.Reasons)
+                    /*if (error.Reasons != null)
                     {
-                        LogError($" - {reason.Message}");
-                    }
+                        foreach (var reason in error.Reasons)
+                        {
+                            LogError($" - {reason.Message}");
+                        }
+                    }*/
                 }
             }
         }
