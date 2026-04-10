@@ -24,14 +24,14 @@ public partial class EventService : IEventService
         public TypeStringKey(Type type)
         {
             Type = type ?? throw new ArgumentNullException(nameof(type));
-            TypeName = type.Name;
+            TypeName = type.Name.ToLowerInvariant();
             HashCode = TypeName.GetHashCode();
         }
 
         public TypeStringKey(string typeName)
         {
             Type = null;
-            TypeName = typeName ?? throw new ArgumentNullException(nameof(typeName));
+            TypeName = typeName?.ToLowerInvariant() ?? throw new ArgumentNullException(nameof(typeName));
             HashCode = TypeName.GetHashCode();
         }
 
@@ -56,7 +56,7 @@ public partial class EventService : IEventService
     private readonly AsyncReaderWriterLock _operationsLock = new();
     private readonly ConcurrentDictionary<TypeStringKey, ConcurrentDictionary<OneOf<IEvent, string>, IEvent>> _subscribers = new();
     private readonly ConcurrentDictionary<TypeStringKey, (TypeStringKey Event, Func<LuaCsFunc, IEvent> RunnerFactory)> _luaAliasEventFactory = new();
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, LuaCsFunc>> _luaLegacyEventsSubscribers = new();
+    private readonly ConcurrentDictionary<TypeStringKey, ConcurrentDictionary<TypeStringKey, LuaCsFunc>> _luaLegacyEventsSubscribers = new();
     private readonly ConcurrentDictionary<IEventService, IEventService> _subscribedEventDispatchers = new();
 
     #region LifeCycle
@@ -118,7 +118,7 @@ public partial class EventService : IEventService
         }
         else
         {
-            var eventSubs = _luaLegacyEventsSubscribers.GetOrAdd(eventName, key => new ConcurrentDictionary<string, LuaCsFunc>());
+            var eventSubs = _luaLegacyEventsSubscribers.GetOrAdd(eventName, key => new ConcurrentDictionary<TypeStringKey, LuaCsFunc>());
             eventSubs[identifier] = callback;
         }
     }
