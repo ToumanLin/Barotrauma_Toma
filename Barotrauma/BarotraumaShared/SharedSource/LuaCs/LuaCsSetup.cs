@@ -274,17 +274,13 @@ namespace Barotrauma
         
         private ImmutableArray<ContentPackage> GetLuaCsEnabledPackagesList(ImmutableArray<ContentPackage> enabledRegular)
         {
-            if (!enabledRegular.Any(
-                    p => p.Name.Equals("LuaCsForBarotrauma", StringComparison.InvariantCultureIgnoreCase) 
-                         || p.Name.Equals("Lua for Barotrauma", StringComparison.InvariantCultureIgnoreCase)))
+            if (!enabledRegular.Any(p => p.Name.Equals(PackageId, StringComparison.InvariantCultureIgnoreCase)))
             {
-                var luaCs = ContentPackageManager.AllPackages.FirstOrDefault(
-                    p => p.Name.Equals("LuaCsForBarotrauma", StringComparison.InvariantCultureIgnoreCase) 
-                         || p.Name.Equals("Lua For Barotrauma", StringComparison.InvariantCultureIgnoreCase));
+                var luaCs = ContentPackageManager.AllPackages.FirstOrDefault(p => p.Name.Equals(PackageId, StringComparison.InvariantCultureIgnoreCase));
                 if (luaCs is null)
                 {
-                    DebugConsole.ThrowError($"The 'LuaCsForBarotrauma' mod could not be found. Please subscribe to it and add it to the EnabledPackages List!", 
-                        new NullReferenceException($"The 'LuaCsForBarotrauma' mod could not be found. Please subscribe to it and add it to the EnabledPackages List!"),
+                    DebugConsole.ThrowError($"The '{PackageId}' mod could not be found. Please subscribe to it and add it to the EnabledPackages List!", 
+                        new NullReferenceException($"The '{PackageId}' mod could not be found. Please subscribe to it and add it to the EnabledPackages List!"),
                         createMessageBox: true);
                     return enabledRegular;
                 }
