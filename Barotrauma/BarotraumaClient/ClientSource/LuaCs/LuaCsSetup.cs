@@ -50,7 +50,7 @@ namespace Barotrauma
             }
 
             ImmutableArray<ContentPackage> contentPackages = PackageManagementService.GetLoadedAssemblyPackages()
-                .Where(p => p.Name != PackageId)
+                .Where(p => p.Name != PackageName)
                 .ToImmutableArray();
 
             return (contentPackages.IsEmpty, contentPackages);

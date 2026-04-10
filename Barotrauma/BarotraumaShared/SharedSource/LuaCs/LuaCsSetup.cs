@@ -25,7 +25,7 @@ namespace Barotrauma
     partial class LuaCsSetup : IDisposable, IEventScreenSelected, IEventEnabledPackageListChanged, 
         IEventReloadAllPackages
     {
-        public const string PackageId = "LuaCsForBarotrauma";
+        public const string PackageName = "LuaCsForBarotrauma";
 
         private static LuaCsSetup _luaCsSetup;
         public static LuaCsSetup Instance => _luaCsSetup ??= new LuaCsSetup();
@@ -118,9 +118,9 @@ namespace Barotrauma
 
         public static ContentPackage GetLuaCsPackage()
         {
-            return ContentPackageManager.EnabledPackages.Regular.FirstOrDefault(cp => cp.NameMatches(PackageId), null)
-                ?? ContentPackageManager.LocalPackages.FirstOrDefault(cp => cp.NameMatches(PackageId))
-                ?? ContentPackageManager.WorkshopPackages.FirstOrDefault(cp => cp.NameMatches(PackageId));
+            return ContentPackageManager.EnabledPackages.Regular.FirstOrDefault(cp => cp.NameMatches(PackageName), null)
+                ?? ContentPackageManager.LocalPackages.FirstOrDefault(cp => cp.NameMatches(PackageName))
+                ?? ContentPackageManager.WorkshopPackages.FirstOrDefault(cp => cp.NameMatches(PackageName));
         }
         
         void LoadLuaCsConfig()
@@ -281,13 +281,13 @@ namespace Barotrauma
         
         private ImmutableArray<ContentPackage> GetLuaCsEnabledPackagesList(ImmutableArray<ContentPackage> enabledRegular)
         {
-            if (!enabledRegular.Any(p => p.Name.Equals(PackageId, StringComparison.InvariantCultureIgnoreCase)))
+            if (!enabledRegular.Any(p => p.Name.Equals(PackageName, StringComparison.InvariantCultureIgnoreCase)))
             {
-                var luaCs = ContentPackageManager.AllPackages.FirstOrDefault(p => p.Name.Equals(PackageId, StringComparison.InvariantCultureIgnoreCase));
+                var luaCs = ContentPackageManager.AllPackages.FirstOrDefault(p => p.Name.Equals(PackageName, StringComparison.InvariantCultureIgnoreCase));
                 if (luaCs is null)
                 {
-                    DebugConsole.ThrowError($"The '{PackageId}' mod could not be found. Please subscribe to it and add it to the EnabledPackages List!", 
-                        new NullReferenceException($"The '{PackageId}' mod could not be found. Please subscribe to it and add it to the EnabledPackages List!"),
+                    DebugConsole.ThrowError($"The '{PackageName}' mod could not be found. Please subscribe to it and add it to the EnabledPackages List!", 
+                        new NullReferenceException($"The '{PackageName}' mod could not be found. Please subscribe to it and add it to the EnabledPackages List!"),
                         createMessageBox: true);
                     return enabledRegular;
                 }
