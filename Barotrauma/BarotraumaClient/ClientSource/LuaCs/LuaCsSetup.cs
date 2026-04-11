@@ -160,7 +160,7 @@ namespace Barotrauma
                     case SubEditorScreen:
                     case TestScreen: // notes: TestScreen is a Linux edge case editor screen and is deprecated.
 
-                        if (screen is NetLobbyScreen && CurrentRunState != RunState.Running)
+                        if (screen is NetLobbyScreen && CurrentRunState != RunState.Running && GameMain.Client?.ClientPeer is not P2POwnerPeer)
                         {
                             PromptCSharpMods(selection =>
                             {
