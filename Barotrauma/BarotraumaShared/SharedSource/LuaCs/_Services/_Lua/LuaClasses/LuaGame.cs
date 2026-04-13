@@ -445,6 +445,26 @@ namespace Barotrauma.LuaCs
                 }
             );
         }
+        
+        public void AddCommand(string name, LuaCsAction onExecute, LuaCsFunc getValidArgs = null, bool isCheat = false)
+        {
+            _consoleCommands.RegisterCommand(name, "",
+                (string[] args) =>
+                {
+                    onExecute(new object[] { args });
+                },
+                () =>
+                {
+                    if (getValidArgs == null) { return null; }
+                    var validArgs = getValidArgs();
+                    if (validArgs is DynValue luaValue)
+                    {
+                        return luaValue.ToObject<string[][]>();
+                    }
+                    return (string[][])validArgs;
+                }
+            );
+        }
 
         public bool IsDisposed => throw new NotImplementedException();
 
