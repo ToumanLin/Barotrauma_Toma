@@ -87,6 +87,9 @@ public class PluginManagementService : IAssemblyManagementService
         ScriptParseOptions);
 
     private ImmutableArray<MetadataReference> _baseMetadataReferences = ImmutableArray<MetadataReference>.Empty;
+    private ImmutableArray<MetadataReference> _baseMetadataReferencesNonPublicized = ImmutableArray<MetadataReference>.Empty;
+    
+    
     private IEnumerable<MetadataReference> BaseMetadataReferences
     {
         get
@@ -107,6 +110,25 @@ public class PluginManagementService : IAssemblyManagementService
             }
 
             return _baseMetadataReferences;
+        }
+    }
+    
+    private IEnumerable<MetadataReference> BaseMetadataReferencesWithBarotrauma
+    {
+        get
+        {
+            if (_baseMetadataReferencesNonPublicized.IsDefaultOrEmpty)
+            {
+                _baseMetadataReferencesNonPublicized = Basic.Reference.Assemblies.Net80.References.All
+                    .Union(AssemblyLoadContext.Default.Assemblies
+                        .Where(ass => !ass.IsDynamic)
+                        .Where(ass => !ass.Location.IsNullOrWhiteSpace())
+                        .Select(MetadataReference (ass) => MetadataReference.CreateFromFile(ass.Location)))
+                    .Where(ar => ar is not null)
+                    .ToImmutableArray();
+            }
+
+            return _baseMetadataReferencesNonPublicized;
         }
     }
     
@@ -564,7 +586,8 @@ public class PluginManagementService : IAssemblyManagementService
                 return;
             }
 
-            var metadataReferences = GetMetadataReferences();
+            var metadataReferences = GetMetadataReferences(false).ToImmutableArray();
+            var metadataReferencesNonPublicized = GetMetadataReferences(true).ToImmutableArray();
             
             var assemblyLoader = _assemblyLoaders.GetOrAdd(contentPackRes.Key, (cp) => _assemblyLoaderFactory.CreateInstance(
                 new IAssemblyLoaderService.LoaderInitData(
@@ -588,7 +611,10 @@ public class PluginManagementService : IAssemblyManagementService
                 
                 foreach (var resourceInfo in scripts)
                 {
-                    if (!hasInternalsAwareBeenAdded && resourceInfo.UseInternalAccessName)
+                    // this should be the same for the entire collection of src files so we just grab it from the collection
+                    compileWithInternalName = resourceInfo.UseInternalAccessName;
+                    
+                    if (!hasInternalsAwareBeenAdded)
                     {
                         hasInternalsAwareBeenAdded = true;
                         syntaxTreesBuilder.Add(BaseAssemblyImports);
@@ -607,9 +633,6 @@ public class PluginManagementService : IAssemblyManagementService
                             _logger.LogResults(loadRes.ToResult());
                             continue;
                         }
-                    
-                        // this should be the same for the entire collection of src files so we just grab it from the collection
-                        compileWithInternalName = resourceInfo.UseInternalAccessName;
                 
                         CancellationToken token = CancellationToken.None;
 
@@ -632,14 +655,33 @@ public class PluginManagementService : IAssemblyManagementService
                 }
                 
                 _logger.LogMessage($"Compiling assembly for {scripts.Key}, in ContentPackage {contentPackRes.Key.Name}");
-                
-                result.WithReasons(assemblyLoader.CompileScriptAssembly(
+
+                var res = assemblyLoader.CompileScriptAssembly(
                     assemblyName: scripts.Key,
                     compileWithInternalAccess: compileWithInternalName,
                     syntaxTrees: syntaxTreesBuilder.ToImmutable(),
-                    metadataReferences: metadataReferences.ToImmutableArray(),
-                    compilationOptions: CompilationOptions)
-                    .Reasons);
+                    metadataReferences: compileWithInternalName ? metadataReferencesNonPublicized : metadataReferences,
+                    compilationOptions: CompilationOptions);
+
+                // try with internal access instead for legacy mods
+                if (!compileWithInternalName && res.IsFailed)
+                {
+                    _logger.LogMessage($"Attempted compilation of {scripts.Key} for package {contentPackRes.Key.Name}. Trying fallback method.");
+                    var res2 = assemblyLoader.CompileScriptAssembly(
+                        assemblyName: scripts.Key,
+                        compileWithInternalAccess: true,
+                        syntaxTrees: syntaxTreesBuilder.ToImmutable(),
+                        metadataReferences: metadataReferencesNonPublicized,
+                        compilationOptions: CompilationOptions);
+
+                    // overwrite result with good compilation
+                    if (res2.IsSuccess)
+                    {
+                        res = res2;
+                    }
+                }
+
+                result.WithReasons(res.Reasons);
             }
         }
         
@@ -654,14 +696,28 @@ public class PluginManagementService : IAssemblyManagementService
             return res;
         }
         
-        IEnumerable<MetadataReference> GetMetadataReferences()
+        IEnumerable<MetadataReference> GetMetadataReferences(bool useNonPublicizedAssemblies)
         {
             var builder = ImmutableArray.CreateBuilder<MetadataReference>();
-            builder.AddRange(BaseMetadataReferences);
-            foreach (var loaderService in _assemblyLoaders)
+            if (useNonPublicizedAssemblies)
             {
-                builder.AddRange(loaderService.Value.AssemblyReferences.Where(ar => ar is not null));
+                builder.AddRange(BaseMetadataReferencesWithBarotrauma);
+                foreach (var loaderService in _assemblyLoaders
+                             .Where(asl => !asl.Key.Name.Equals("LuaCsForBarotrauma", StringComparison.InvariantCultureIgnoreCase))
+                             .ToImmutableArray())
+                {
+                    builder.AddRange(loaderService.Value.AssemblyReferences.Where(ar => ar is not null));
+                }
             }
+            else
+            {
+                builder.AddRange(BaseMetadataReferences);
+                foreach (var loaderService in _assemblyLoaders)
+                {
+                    builder.AddRange(loaderService.Value.AssemblyReferences.Where(ar => ar is not null));
+                }
+            }
+            
             return builder.ToImmutable();
         }
     }
