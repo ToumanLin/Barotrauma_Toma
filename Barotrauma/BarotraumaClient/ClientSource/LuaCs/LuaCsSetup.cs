@@ -20,7 +20,7 @@ namespace Barotrauma
     {        
         public void PromptCSharpMods(Action<bool> onSelection, bool joiningServer)
         {
-            ImmutableArray<ContentPackage> contentPackages = PackageManagementService.GetLoadedAssemblyPackages()
+            ImmutableArray<ContentPackage> contentPackages = PackageManagementService.GetLoadedUnrestrictedPackages()
                 .Where(p => p.Name != PackageName)
                 .ToImmutableArray();
 
@@ -56,7 +56,7 @@ namespace Barotrauma
                 Stretch = true
             };
 
-            new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), msgBoxLayout.RectTransform), "The following mods contain CSharp code",
+            new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), msgBoxLayout.RectTransform), "The following mods contain CSharp code OR Unsandboxed Lua Code",
                 font: GUIStyle.SubHeadingFont, wrap: true, textAlignment: Alignment.Center);
 
             GUIListBox packageListBox = new GUIListBox(new RectTransform(new Vector2(1.0f, 0.4f), msgBoxLayout.RectTransform))
@@ -84,8 +84,8 @@ namespace Barotrauma
 
             string bodyText =
                 joiningServer ?
-                "You are joining a server that includes mods with C# code. These mods are not sandboxed and may access your computer without restrictions. If you trust these mods, select 'Enable C# for this session'. Otherwise, select 'Cancel' to run only Lua mods."
-                : "You have enabled mods that include C# code. These mods are not sandboxed and may access your computer without restrictions. If you trust these mods, select 'Enable C# for this session'. Otherwise, select 'Cancel' to run only Lua mods.";
+                "You are joining a server that includes mods with C# code OR unrestricted Lua code. These mods are not sandboxed and may access your computer without restrictions. If you trust these mods, select 'Enable C# for this session'. Otherwise, select 'Cancel' to run only Lua mods."
+                : "You have enabled mods that include C# code. These mods are not sandboxed and may access your computer without restrictions. If you trust these mods, select 'Enable C# for this session'. Otherwise, select 'Cancel' to run only Sandboxed Lua mods.";
 
             new GUITextBlock(new RectTransform(new Vector2(1.0f, 0f), msgBoxLayout.RectTransform), bodyText, wrap: true)
             {

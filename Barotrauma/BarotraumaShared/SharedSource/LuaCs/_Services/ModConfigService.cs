@@ -405,6 +405,7 @@ public sealed class ModConfigService : IModConfigService
                     IncompatiblePackages =  ImmutableArray<Identifier>.Empty,
                     RequiredPackages = ImmutableArray<Identifier>.Empty,
                     IsAutorun = true,
+                    RunUnrestricted = false
                 });
                 
                 builder.Add(new LuaScriptsResourceInfo()
@@ -418,6 +419,7 @@ public sealed class ModConfigService : IModConfigService
                     IncompatiblePackages =  ImmutableArray<Identifier>.Empty,
                     RequiredPackages = ImmutableArray<Identifier>.Empty,
                     IsAutorun = false,
+                    RunUnrestricted = false
                 });
             }
             

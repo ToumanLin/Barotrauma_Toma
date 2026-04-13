@@ -345,6 +345,8 @@ public sealed class PackageManagementService : IPackageManagementService
 
         //lua scripts
         var luaScripts = SelectCompatible(loadingOrderedPackages
+            .Where(pkg => executeCsAssemblies 
+                          || !pkg.Value.LuaScripts.Any(scr => scr.RunUnrestricted))
             .SelectMany(pkg => pkg.Value.LuaScripts)
             .ToImmutableArray(), toLoadPackagesIndents, loadOrderByPackage);
             
@@ -513,14 +515,14 @@ public sealed class PackageManagementService : IPackageManagementService
         return !_runningPackages.IsEmpty;
     }
 
-    public ImmutableArray<ContentPackage> GetLoadedAssemblyPackages()
+    public ImmutableArray<ContentPackage> GetLoadedUnrestrictedPackages()
     {
         using var lck = _operationsLock.AcquireReaderLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
         if (_loadedPackages.IsEmpty)
             return ImmutableArray<ContentPackage>.Empty;
         return [.._loadedPackages.Values
-                .Where(cfg => !cfg.Assemblies.IsDefaultOrEmpty)
+                .Where(cfg => !cfg.Assemblies.IsDefaultOrEmpty || cfg.LuaScripts.Any(scr => scr.RunUnrestricted))
                 .Select(cfg => cfg.Package)];
     }
 }

@@ -174,7 +174,8 @@ public sealed partial class ModConfigFileParserService :
             RequiredPackages = src.Required,
             IncompatiblePackages =  src.Incompatible,
             // Type Specific
-            IsAutorun = src.Element.GetAttributeBool("IsAutorun", false)
+            IsAutorun = src.Element.GetAttributeBool("IsAutorun", false),
+            RunUnrestricted = src.Element.GetAttributeBool("RunUnrestricted", false)
         };
     }
 
