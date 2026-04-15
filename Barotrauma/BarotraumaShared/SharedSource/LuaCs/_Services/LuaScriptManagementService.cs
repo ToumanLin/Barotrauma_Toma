@@ -285,6 +285,8 @@ class LuaScriptManagementService : ILuaScriptManagementService, ILuaDataService,
         _eventService.RegisterLuaEventAlias<IEventGiveCharacterJobItems>("character.giveJobItems", nameof(IEventGiveCharacterJobItems.OnGiveCharacterJobItems));
         _eventService.RegisterLuaEventAlias<IEventHumanCPRSuccess>("character.CPRSuccess", nameof(IEventHumanCPRSuccess.OnCharacterCPRSuccess));
         _eventService.RegisterLuaEventAlias<IEventHumanCPRFailed>("character.CPRFailed", nameof(IEventHumanCPRFailed.OnCharacterCPRFailed));
+        _eventService.RegisterLuaEventAlias<IEventHumanCPRSuccess>("human.CPRSuccess", nameof(IEventHumanCPRSuccess.OnCharacterCPRSuccess));
+        _eventService.RegisterLuaEventAlias<IEventHumanCPRFailed>("human.CPRFailed", nameof(IEventHumanCPRFailed.OnCharacterCPRFailed));
         _eventService.RegisterLuaEventAlias<IEventCharacterApplyDamage>("character.applyDamage", nameof(IEventCharacterApplyDamage.OnCharacterApplyDamage));
         _eventService.RegisterLuaEventAlias<IEventCharacterApplyAffliction>("character.applyAffliction", nameof(IEventCharacterApplyAffliction.OnCharacterApplyAffliction));
 
