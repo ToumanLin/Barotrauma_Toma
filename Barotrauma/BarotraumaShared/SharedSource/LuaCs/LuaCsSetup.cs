@@ -260,18 +260,12 @@ namespace Barotrauma
 
         public void OnReloadAllPackages()
         {
-            if (CurrentRunState <= RunState.Unloaded)
-            {
-                return;
-            }
-
             CoroutineManager.Invoke(() =>
             {
-                var state = CurrentRunState;
                 SetRunState(RunState.Unloaded);
                 CoroutineManager.Invoke(() =>
                 {
-                    SetRunState(state);
+                    SetRunState(RunState.Running);
                 },0.25f);
             });
         }
