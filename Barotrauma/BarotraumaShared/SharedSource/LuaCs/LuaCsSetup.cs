@@ -125,7 +125,9 @@ namespace Barotrauma
         }
 
         private ISettingList<string> _csRunPolicy;
-        
+
+        public string CsRunPolicyValue => _csRunPolicy?.Value ?? "Prompt";
+
         /// <summary>
         /// Whether usernames are anonymized or show in logs. 
         /// </summary>

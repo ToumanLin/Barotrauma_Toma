@@ -45,8 +45,9 @@ public class SettingsMenuSystem : ISettingsMenuSystem
         var tabGameplayIndex = (SettingsMenu.Tab)tabCount;
         var tabControlsIndex = (SettingsMenu.Tab)tabCount+1;
 
-        _gameplayContentFrame = CreateNewContentTab(tabGameplayIndex, __instance, 
-            "SettingsMenuTab.Mods", "LuaCsForBarotrauma.SettingsMenu.ModGameplayButton");
+        _gameplayContentFrame = CreateNewContentTab(tabGameplayIndex, __instance,
+            GUIStyle.ComponentStyles.ContainsKey("SettingsMenuTab.LuaCsSettings") ? "SettingsMenuTab.LuaCsSettings" : "SettingsMenuTab.Mods", 
+            "LuaCsForBarotrauma.SettingsMenu.ModGameplayButton");
         /*_controlsContentFrame = CreateNewContentTab(tabControlsIndex, __instance, 
             "SettingsMenuTab.Controls", "LuaCsForBarotrauma.SettingsMenu.ModControlsButton");
             */
