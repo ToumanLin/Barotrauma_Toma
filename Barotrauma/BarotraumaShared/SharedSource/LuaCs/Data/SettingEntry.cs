@@ -33,11 +33,6 @@ public partial class SettingEntry<T> : SettingBase, ISettingBase<T>, INetworkSyn
             ThrowHelper.ThrowArgumentException($"{nameof(ISettingBase<T>)}: The type of {nameof(T)} is not an allowed type.");
         }
         ValueChangePredicate = valueChangePredicate;
-
-        if (ConfigInfo.Element.Attribute("Value") is null)
-        {
-            ThrowHelper.ThrowArgumentException($"The Setting {InternalName} in package {OwnerPackage.Name} does not have a 'Value' attribute!");
-        }
         
         try
         {
