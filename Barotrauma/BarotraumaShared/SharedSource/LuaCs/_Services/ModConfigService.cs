@@ -357,7 +357,7 @@ public sealed class ModConfigService : IModConfigService
                         FriendlyName = IAssemblyLoaderService.InternalsAwareAssemblyName,
                         IncompatiblePackages = ImmutableArray<Identifier>.Empty,
                         RequiredPackages = ImmutableArray<Identifier>.Empty,
-                        UseInternalAccessName = true,
+                        UseInternalAccessName = false,
                         IsScript = true,
                         IsReferenceModeOnly = false
                     });
