@@ -558,7 +558,8 @@ public sealed class AssemblyLoader : AssemblyLoadContext, IAssemblyLoaderService
         IsDisposed = true;
         this.Unload();
         this.DisposeInternal();
-        GC.SuppressFinalize(this);
+        // we want to call base finalizers
+        //GC.SuppressFinalize(this);
     }
 
     ~AssemblyLoader()
@@ -579,6 +580,7 @@ public sealed class AssemblyLoader : AssemblyLoadContext, IAssemblyLoaderService
         }
         
         var wf = new WeakReference<IAssemblyLoaderService>(this);
+        _loadedAssemblyData.Clear();
         _onUnload?.Invoke(this);
     }
 

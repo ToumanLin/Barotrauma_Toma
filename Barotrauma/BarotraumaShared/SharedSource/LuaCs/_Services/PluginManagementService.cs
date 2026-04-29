@@ -174,6 +174,7 @@ public class PluginManagementService : IAssemblyManagementService
         _pluginInjectorContainer?.Dispose();
         _pluginInjectorContainer = null;
         
+        ReflectionUtils.ResetCache();
         foreach (var loader in _assemblyLoaders)
         {
             try
@@ -184,14 +185,6 @@ public class PluginManagementService : IAssemblyManagementService
             catch (Exception e)
             {
                 _logger?.LogError($"Failed to dispose of {nameof(IAssemblyLoaderService)} for ContentPackage {loader.Key.Name}: \n{e.Message}");
-                if (loader.Value.Assemblies.Any())
-                {
-                    foreach (var ass in loader.Value.Assemblies)
-                    {
-                        _logger?.LogWarning($"{nameof(PluginManagementService)}: Fallback manual unsubscription of assemblies: {ass.GetName()}");
-                        ReflectionUtils.RemoveAssemblyFromCache(ass);
-                    }
-                }
             }
         }
         _assemblyLoaders.Clear();
@@ -837,7 +830,9 @@ public class PluginManagementService : IAssemblyManagementService
 
         _assemblyLoaders.Clear();
         _storageService.PurgeCache();
+        GC.Collect();
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, true);
+        GC.WaitForFullGCComplete(1000);
 
 #if DEBUG
         // Print still loaded assembly load ctx after giving some time
@@ -916,6 +911,14 @@ public class PluginManagementService : IAssemblyManagementService
         {
             _eventService.Value.RemoveDispatcherEventService(_pluginEventService);
             _pluginEventService = null;
+        }
+        try
+        {
+            _pluginInjectorContainer.Dispose();
+        }
+        catch (Exception e)
+        {
+            results.WithError(new ExceptionalError(e));
         }
         _pluginInjectorContainer = null;
         
