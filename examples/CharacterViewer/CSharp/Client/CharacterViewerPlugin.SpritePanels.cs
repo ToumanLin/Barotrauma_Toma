@@ -261,7 +261,7 @@ public sealed partial class CharacterViewerPlugin
             onDraw: (spriteBatch, component) => DrawSpritePreviewCanvas(spriteBatch, component, entries, zoom, GetSpriteHorizontalScrollOffset(list)))
         {
             CanBeFocused = true,
-            HideElementsOutsideFrame = true
+            HideElementsOutsideFrame = false
         };
         spriteCanvasWidths[list] = width;
         UpdateSpriteHorizontalScrollBar(list);
