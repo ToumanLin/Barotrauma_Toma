@@ -15,7 +15,7 @@ using System.Reflection;
 
 namespace CharacterViewer;
 
-public sealed class CharacterViewerPlugin : IAssemblyPlugin
+public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 {
     private static CharacterViewerPlugin instance;
 
@@ -25,13 +25,22 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
     private Harmony harmony;
     private GUIFrame headWindow;
     private GUIFrame clothingWindow;
+    private GUIFrame bodySpriteWindow;
+    private GUIFrame headSpriteWindow;
+    private GUIFrame clothingSpriteWindow;
     private GUITextBlock clothingInfoText;
     private GUITextBlock statusText;
     private GUITextBox searchBox;
     private GUIDropDown clothingDropDown;
+    private GUIListBox bodySpriteInfoList;
+    private GUIListBox headSpriteInfoList;
+    private GUIListBox clothingSpriteInfoList;
     private ItemPrefab selectedClothingPrefab;
     private string searchText = string.Empty;
     private Identifier selectedGender = Identifier.Empty;
+    private float bodySpritePreviewZoom = 1.0f;
+    private float headSpritePreviewZoom = 1.0f;
+    private float clothingSpritePreviewZoom = 1.0f;
     private bool recreateGuiQueued = true;
     private bool applyingGender;
     private bool suppressClothingSelection;
@@ -147,19 +156,23 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
     {
         if (Screen.Selected is not CharacterEditorScreen) { return; }
         EnsureEditorPanelControls();
-        if (!panelsEnabled || GUIMessageBox.VisibleBox != null)
+        if (!panelsEnabled || GUIMessageBox.VisibleBox != null || GUI.PauseMenuOpen)
         {
             RemoveWindows();
             return;
         }
 
-        if (recreateGuiQueued || headWindow == null || clothingWindow == null)
+        if (recreateGuiQueued || headWindow == null || clothingWindow == null ||
+            bodySpriteWindow == null || headSpriteWindow == null || clothingSpriteWindow == null)
         {
             RecreateWindows();
         }
 
         headWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
         clothingWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+        bodySpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+        headSpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+        clothingSpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
     }
 
     private void OnCharacterEditorUpdated()
@@ -169,7 +182,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
         EnsureEditorPanelControls();
         UpdateShortcuts();
 
-        if (panelsEnabled && GUIMessageBox.VisibleBox == null)
+        if (panelsEnabled && GUIMessageBox.VisibleBox == null && !GUI.PauseMenuOpen)
         {
             UpdateWindowDragging();
         }
@@ -266,6 +279,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
         {
             ApplySelectedGender();
         }
+        UpdateAllViewerSpriteInfo();
         QueueGuiRecreate();
     }
 
@@ -281,18 +295,35 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
 
         CreateHeadWindow();
         CreateClothingWindow();
+        CreateBodySpriteWindow();
+        CreateHeadSpriteWindow();
+        CreateClothingSpriteWindow();
+        UpdateAllViewerSpriteInfo();
     }
 
     private void RemoveWindows()
     {
         RemoveWindow(headWindow);
         RemoveWindow(clothingWindow);
+        RemoveWindow(bodySpriteWindow);
+        RemoveWindow(headSpriteWindow);
+        RemoveWindow(clothingSpriteWindow);
         headWindow = null;
         clothingWindow = null;
+        bodySpriteWindow = null;
+        headSpriteWindow = null;
+        clothingSpriteWindow = null;
         clothingInfoText = null;
         statusText = null;
         searchBox = null;
         clothingDropDown = null;
+        bodySpriteInfoList = null;
+        headSpriteInfoList = null;
+        clothingSpriteInfoList = null;
+        spriteListsPendingScrollReset.Clear();
+        spriteHorizontalScrollBars.Clear();
+        spriteHorizontalScrollOffsets.Clear();
+        spriteCanvasWidths.Clear();
         draggedWindow = null;
     }
 
@@ -339,7 +370,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
 
     private void CreateHeadWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Character Viewer", new Point(420, 420), new Point(24, 30), out headWindow);
+        GUILayoutGroup content = CreateFloatingWindow("Character Viewer", new Point(300, 250), new Point(1, 15), out headWindow);
         Character character = CurrentCharacter;
         CharacterInfo info = character?.Info;
         if (info?.Head?.Preset == null)
@@ -410,6 +441,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
         {
             if (data is not CharacterInfo.HeadPreset preset) { return true; }
             ApplyHeadPreset(character, info, preset);
+            UpdateAllViewerSpriteInfo();
             QueueGuiRecreate();
             return true;
         };
@@ -436,6 +468,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
             applyIndex(index);
             info.ReloadHeadAttachments();
             character.LoadHeadAttachments();
+            UpdateAllViewerSpriteInfo();
             QueueGuiRecreate();
             return true;
         };
@@ -492,11 +525,12 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
         CharacterInfo.HeadPreset preset = info.Prefab.Heads.FirstOrDefault(h => h.TagSet.Contains(selectedGender));
         if (preset == null) { return; }
         ApplyHeadPreset(character, info, preset);
+        UpdateAllViewerSpriteInfo();
     }
 
     private void CreateClothingWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Clothing Manager", new Point(470, 500), new Point(468, 30), out clothingWindow);
+        GUILayoutGroup content = CreateFloatingWindow("Clothing Manager", new Point(470, 250), new Point(300, 15), out clothingWindow);
 
         searchBox = new GUITextBox(new RectTransform(new Vector2(1.0f, 0.08f), content.RectTransform), searchText, style: "GUITextBox")
         {
@@ -531,6 +565,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
             selectedClothingPrefab = null;
             ClearViewerClothing();
             UpdateClothingInfo("No clothing selected.");
+            UpdateAllViewerSpriteInfo();
             PopulateClothingDropDown();
         });
 
@@ -611,6 +646,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
         if (prefab == null)
         {
             UpdateClothingInfo("No clothing selected.");
+            UpdateAllViewerSpriteInfo();
             return;
         }
 
@@ -618,6 +654,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
         if (character?.Inventory == null)
         {
             UpdateClothingInfo("No character inventory available.");
+            UpdateAllViewerSpriteInfo();
             return;
         }
 
@@ -634,12 +671,14 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
             {
                 item.Remove();
                 UpdateClothingInfo("Selected item has no wearable component.");
+                UpdateAllViewerSpriteInfo();
                 return;
             }
             if (pickable == null)
             {
                 item.Remove();
                 UpdateClothingInfo("Selected item has no pickable component.");
+                UpdateAllViewerSpriteInfo();
                 return;
             }
 
@@ -652,18 +691,21 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
             {
                 item.Remove();
                 UpdateClothingInfo("Could not equip the selected item in any allowed slot.");
+                UpdateAllViewerSpriteInfo();
                 return;
             }
 
             wearable.Equip(character);
             viewerEquippedItems.Add(item);
             UpdateClothingInfo("Equipped for preview.");
+            UpdateAllViewerSpriteInfo();
         }
         catch (Exception ex)
         {
             item?.Remove();
             LuaCsLogger.LogError($"CharacterViewer failed to equip {prefab.Identifier}: {ex}");
             UpdateClothingInfo("Failed to equip selected clothing. See console for details.");
+            UpdateAllViewerSpriteInfo();
         }
     }
 
@@ -776,6 +818,7 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
             RespawnBestAvailableSpecies(previousSpecies);
             selectedClothingPrefab = null;
             searchText = string.Empty;
+            UpdateAllViewerSpriteInfo();
             messageBox.Close();
             QueueGuiRecreate();
         }
@@ -845,6 +888,9 @@ public sealed class CharacterViewerPlugin : IAssemblyPlugin
     {
         if (IsWindowHeaderHovered(headWindow)) { return headWindow; }
         if (IsWindowHeaderHovered(clothingWindow)) { return clothingWindow; }
+        if (IsWindowHeaderHovered(bodySpriteWindow)) { return bodySpriteWindow; }
+        if (IsWindowHeaderHovered(headSpriteWindow)) { return headSpriteWindow; }
+        if (IsWindowHeaderHovered(clothingSpriteWindow)) { return clothingSpriteWindow; }
         return null;
     }
 
