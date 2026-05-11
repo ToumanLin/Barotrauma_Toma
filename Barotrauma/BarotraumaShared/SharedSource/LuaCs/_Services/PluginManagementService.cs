@@ -363,6 +363,7 @@ public class PluginManagementService : IAssemblyManagementService
         return null;
     }
 
+    [MethodImpl(MethodImplOptions.NoOptimization)]
     public FluentResults.Result ActivatePluginInstances(ImmutableArray<ContentPackage> executionOrder, bool excludeAlreadyRunningPackages = true)
     {
         if (executionOrder.IsDefaultOrEmpty)
@@ -481,6 +482,7 @@ public class PluginManagementService : IAssemblyManagementService
         return results;
 
         // helper
+        [MethodImpl(MethodImplOptions.NoOptimization)]
         FluentResults.Result PluginInitRunner(IAssemblyPlugin plugin, Action<IAssemblyPlugin> action)
         {
             try
@@ -832,6 +834,7 @@ public class PluginManagementService : IAssemblyManagementService
         _storageService.PurgeCache();
         GC.Collect();
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, true);
+        GC.WaitForPendingFinalizers();
         GC.WaitForFullGCComplete(1000);
 
 #if DEBUG
