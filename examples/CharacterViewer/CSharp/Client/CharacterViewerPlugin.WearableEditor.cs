@@ -116,6 +116,7 @@ public sealed partial class CharacterViewerPlugin
         editor.Clear();
 
         GUIListBox list = editor.EditorBox;
+        list.AutoHideScrollBar = false;
         if (selectedClothingPrefab == null)
         {
             CreateEditorMessage(list, "No clothing selected.");
@@ -172,9 +173,8 @@ public sealed partial class CharacterViewerPlugin
             originalWearableSpriteElements[element] = new XElement(element);
         }
 
-        int frameWidth = Math.Max(GUI.IntScale(340), list.Rect.Width - GUI.IntScale(34));
-        var frame = new GUIFrame(new RectTransform(new Point(frameWidth, GUI.IntScale(480)), list.Content.RectTransform), style: "GUIFrameListBox");
-        var layout = new GUILayoutGroup(new RectTransform(new Vector2(0.96f, 0.96f), frame.RectTransform, Anchor.Center), childAnchor: Anchor.TopLeft)
+        int entryWidth = Math.Max(GUI.IntScale(340), list.Rect.Width - GUI.IntScale(34));
+        var layout = new GUILayoutGroup(new RectTransform(new Point(entryWidth, GUI.IntScale(480)), list.Content.RectTransform), childAnchor: Anchor.TopLeft)
         {
             Stretch = false,
             AbsoluteSpacing = GUI.IntScale(4)

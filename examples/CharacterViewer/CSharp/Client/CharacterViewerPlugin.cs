@@ -354,6 +354,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         spriteHorizontalScrollBars.Clear();
         spriteHorizontalScrollOffsets.Clear();
         spriteCanvasWidths.Clear();
+        spriteCanvasHeights.Clear();
         draggedWindow = null;
         resizedWindow = null;
     }
@@ -386,13 +387,20 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             AbsoluteSpacing = GUI.IntScale(4)
         };
 
-        GUIFrame header = new GUIFrame(new RectTransform(new Vector2(1.0f, 0.09f), outer.RectTransform), style: "GUIFrameListBox");
+        GUIFrame header = new GUIFrame(new RectTransform(new Vector2(1.0f, 0.0f), outer.RectTransform)
+        {
+            MinSize = new Point(0, GUI.IntScale(38)),
+            MaxSize = new Point(int.MaxValue, GUI.IntScale(38))
+        }, style: "GUIFrameListBox");
         new GUITextBlock(new RectTransform(new Vector2(0.94f, 1.0f), header.RectTransform, Anchor.CenterLeft), title, font: GUIStyle.SubHeadingFont, textAlignment: Alignment.CenterLeft)
         {
             CanBeFocused = false
         };
 
-        GUILayoutGroup content = new GUILayoutGroup(new RectTransform(new Vector2(0.96f, 0.88f), outer.RectTransform, Anchor.Center), isHorizontal: false, childAnchor: Anchor.TopLeft)
+        GUILayoutGroup content = new GUILayoutGroup(new RectTransform(new Vector2(0.96f, 1.0f), outer.RectTransform, Anchor.Center)
+        {
+            MinSize = new Point(0, GUI.IntScale(40))
+        }, isHorizontal: false, childAnchor: Anchor.TopLeft)
         {
             Stretch = true,
             AbsoluteSpacing = GUI.IntScale(5)

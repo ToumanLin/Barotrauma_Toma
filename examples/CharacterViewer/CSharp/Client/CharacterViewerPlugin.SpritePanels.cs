@@ -15,6 +15,7 @@ public sealed partial class CharacterViewerPlugin
     private readonly Dictionary<GUIListBox, GUIScrollBar> spriteHorizontalScrollBars = new Dictionary<GUIListBox, GUIScrollBar>();
     private readonly Dictionary<GUIListBox, float> spriteHorizontalScrollOffsets = new Dictionary<GUIListBox, float>();
     private readonly Dictionary<GUIListBox, int> spriteCanvasWidths = new Dictionary<GUIListBox, int>();
+    private readonly Dictionary<GUIListBox, int> spriteCanvasHeights = new Dictionary<GUIListBox, int>();
 
     private sealed class ViewerSpriteEntry
     {
@@ -35,7 +36,7 @@ public sealed partial class CharacterViewerPlugin
 
     private void CreateBodySpriteWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Body Sprite", new Point(420, 250), new Point(1200, 15), out bodySpriteWindow);
+        GUILayoutGroup content = CreateFloatingWindow("Body Sprite", new Point(420, 360), new Point(1200, 15), out bodySpriteWindow);
         bodySpriteInfoList = CreateSpritePreviewPanel(content, "Body Sprites", bodySpritePreviewZoom, value => bodySpritePreviewZoom = value);
     }
 
@@ -55,9 +56,17 @@ public sealed partial class CharacterViewerPlugin
     {
         var panel = new GUIFrame(new RectTransform(Vector2.One, content.RectTransform), style: null);
         panel.RectTransform.MinSize = new Point(0, GUI.IntScale(334));
+        var panelLayout = new GUILayoutGroup(new RectTransform(Vector2.One, panel.RectTransform), childAnchor: Anchor.TopLeft)
+        {
+            Stretch = true,
+            AbsoluteSpacing = GUI.IntScale(2)
+        };
 
-        var zoomRow = new GUIFrame(new RectTransform(new Vector2(1.0f, 0.0f), panel.RectTransform, Anchor.TopLeft, Pivot.TopLeft), style: null);
-        zoomRow.RectTransform.MinSize = new Point(0, GUI.IntScale(28));
+        var zoomRow = new GUIFrame(new RectTransform(new Vector2(1.0f, 0.0f), panelLayout.RectTransform, Anchor.TopLeft, Pivot.TopLeft)
+        {
+            MinSize = new Point(0, GUI.IntScale(28)),
+            MaxSize = new Point(int.MaxValue, GUI.IntScale(28))
+        }, style: null);
         var zoomLabel = new GUITextBlock(
             new RectTransform(new Vector2(0.22f, 1.0f), zoomRow.RectTransform, Anchor.CenterLeft),
             $"Zoom: {(int)(zoom * 100)}%",
@@ -97,11 +106,28 @@ public sealed partial class CharacterViewerPlugin
         };
 
         GUIListBox list = null;
-        var horizontalScrollBar = new GUIScrollBar(
-            new RectTransform(new Vector2(1.0f, 0.0f), panel.RectTransform, Anchor.TopLeft, Pivot.TopLeft)
+        list = new GUIListBox(
+            new RectTransform(new Vector2(1.0f, 1.0f), panelLayout.RectTransform, Anchor.TopLeft, Pivot.TopLeft)
             {
-                AbsoluteOffset = new Point(0, GUI.IntScale(314)),
-                MinSize = new Point(0, GUI.IntScale(18))
+                MinSize = new Point(0, GUI.IntScale(180))
+            },
+            style: null);
+        list.Padding = Vector4.Zero;
+        list.AutoHideScrollBar = false;
+        list.OnAddedToGUIUpdateList = component =>
+        {
+            if (component is GUIListBox listBox && spriteListsPendingScrollReset.Remove(listBox))
+            {
+                ResetSpriteListScroll(listBox);
+            }
+            UpdateSpriteHorizontalScrollBar(list);
+            UpdateSpriteListVerticalScrollBar(list);
+        };
+        var horizontalScrollBar = new GUIScrollBar(
+            new RectTransform(new Vector2(1.0f, 0.0f), panelLayout.RectTransform, Anchor.TopLeft, Pivot.TopLeft)
+            {
+                MinSize = new Point(0, GUI.IntScale(18)),
+                MaxSize = new Point(int.MaxValue, GUI.IntScale(18))
             },
             barSize: 1.0f,
             isHorizontal: true)
@@ -117,24 +143,6 @@ public sealed partial class CharacterViewerPlugin
                 spriteHorizontalScrollOffsets[list] = scrollBar.BarScrollValue;
             }
             return true;
-        };
-
-        list = new GUIListBox(
-            new RectTransform(new Vector2(1.0f, 0.0f), panel.RectTransform, Anchor.TopLeft, Pivot.TopLeft)
-            {
-                AbsoluteOffset = new Point(0, GUI.IntScale(34))
-            },
-            style: null);
-        list.Padding = Vector4.Zero;
-        list.RectTransform.MinSize = new Point(0, GUI.IntScale(276));
-        list.OnAddedToGUIUpdateList = component =>
-        {
-            if (component is GUIListBox listBox && spriteListsPendingScrollReset.Remove(listBox))
-            {
-                ResetSpriteListScroll(listBox);
-            }
-            UpdateSpriteHorizontalScrollBar(list);
-            UpdateSpriteListVerticalScrollBar(list);
         };
         spriteHorizontalScrollBars[list] = horizontalScrollBar;
         spriteHorizontalScrollOffsets[list] = 0.0f;
@@ -247,6 +255,7 @@ public sealed partial class CharacterViewerPlugin
                 CanBeFocused = false
             };
             spriteCanvasWidths[list] = 0;
+            spriteCanvasHeights[list] = GUI.IntScale(24);
             spriteHorizontalScrollOffsets[list] = 0.0f;
             UpdateSpriteHorizontalScrollBar(list);
             RequestSpriteListScrollReset(list);
@@ -267,14 +276,16 @@ public sealed partial class CharacterViewerPlugin
             y += fileLabelHeight + (int)(textureHeight * zoom) + padding;
         }
 
+        int canvasHeight = Math.Max(y, GUI.IntScale(24));
         new GUICustomComponent(
-            new RectTransform(new Point(width, Math.Max(y, GUI.IntScale(24))), list.Content.RectTransform, Anchor.TopLeft, Pivot.TopLeft),
+            new RectTransform(new Point(width, canvasHeight), list.Content.RectTransform, Anchor.TopLeft, Pivot.TopLeft),
             onDraw: (spriteBatch, component) => DrawSpritePreviewCanvas(spriteBatch, component, entries, zoom, GetSpriteHorizontalScrollOffset(list)))
         {
             CanBeFocused = true,
             HideElementsOutsideFrame = false
         };
         spriteCanvasWidths[list] = width;
+        spriteCanvasHeights[list] = canvasHeight;
         UpdateSpriteHorizontalScrollBar(list);
         RequestSpriteListScrollReset(list);
         UpdateSpriteListVerticalScrollBar(list);
@@ -294,12 +305,13 @@ public sealed partial class CharacterViewerPlugin
         list.RecalculateChildren();
     }
 
-    private static void UpdateSpriteListVerticalScrollBar(GUIListBox list)
+    private void UpdateSpriteListVerticalScrollBar(GUIListBox list)
     {
         if (list == null) { return; }
         list.RecalculateChildren();
         list.UpdateScrollBarSize();
-        list.ScrollBarVisible = list.BarSize < 1.0f;
+        int canvasHeight = spriteCanvasHeights.TryGetValue(list, out int storedHeight) ? storedHeight : 0;
+        list.ScrollBarVisible = canvasHeight > list.Content.Rect.Height + GUI.IntScale(2);
         list.ScrollBar.Enabled = list.ScrollBarVisible;
     }
 
