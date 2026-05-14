@@ -1,5 +1,6 @@
 using Barotrauma;
 using Barotrauma.CharacterEditor;
+using Barotrauma.Extensions;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
 using System;
@@ -14,11 +15,21 @@ namespace CharacterViewer;
 
 public sealed partial class CharacterViewerPlugin
 {
+    private sealed class WearableSpriteSelection
+    {
+        public Limb Limb;
+        public WearableSprite Sprite;
+        public XElement Element => Sprite?.SourceElement?.Element;
+    }
+
     private readonly Dictionary<XElement, XElement> originalWearableSpriteElements = new Dictionary<XElement, XElement>();
 
     private bool wearableEditorEnabled;
     private bool wearableEditorRebuildQueued;
+    private bool wearableSpriteListRebuildQueued;
     private ItemPrefab wearableEditorPrefab;
+    private XElement selectedWearableSpriteElement;
+    private XElement pendingPreviewSelectedWearableSpriteElement;
 
     private void SetWearableEditorEnabled(bool enabled)
     {
@@ -32,12 +43,19 @@ public sealed partial class CharacterViewerPlugin
             DisableVanillaEditorModes();
             SetParamsEditorVisible(true);
             QueueWearableEditorRebuild();
+            QueueWearableSpriteListRebuild();
         }
         else
         {
             wearableEditorPrefab = null;
             wearableEditorRebuildQueued = false;
+            wearableSpriteListRebuildQueued = false;
+            selectedWearableSpriteElement = null;
             ParamsEditor.Instance.Clear();
+            RemoveWindow(wearableSpriteListWindow);
+            wearableSpriteListWindow = null;
+            wearableSpriteListBox = null;
+            UpdateAllViewerSpriteInfo();
         }
     }
 
@@ -46,10 +64,20 @@ public sealed partial class CharacterViewerPlugin
         if (!wearableEditorEnabled) { return; }
 
         DisableVanillaEditorModes();
+        ApplyPendingPreviewSelection();
 
         if (wearableEditorPrefab != selectedClothingPrefab)
         {
+            selectedWearableSpriteElement = null;
             QueueWearableEditorRebuild();
+            QueueWearableSpriteListRebuild();
+        }
+
+        EnsureSelectedWearableSprite();
+
+        if (wearableSpriteListRebuildQueued)
+        {
+            PopulateWearableSpriteList();
         }
 
         if (wearableEditorRebuildQueued)
@@ -61,6 +89,11 @@ public sealed partial class CharacterViewerPlugin
     private void QueueWearableEditorRebuild()
     {
         wearableEditorRebuildQueued = true;
+    }
+
+    private void QueueWearableSpriteListRebuild()
+    {
+        wearableSpriteListRebuildQueued = true;
     }
 
     private void SyncWearableEditorToggle()
@@ -107,6 +140,119 @@ public sealed partial class CharacterViewerPlugin
         }
     }
 
+    private void CreateWearableSpriteListWindow()
+    {
+        GUILayoutGroup content = CreateFloatingWindow("Wearable Sprite List", new Point(470, 260), new Point(780, 15), out wearableSpriteListWindow);
+        wearableSpriteListBox = new GUIListBox(new RectTransform(Vector2.One, content.RectTransform), style: null)
+        {
+            AutoHideScrollBar = false
+        };
+        QueueWearableSpriteListRebuild();
+    }
+
+    private void PopulateWearableSpriteList()
+    {
+        wearableSpriteListRebuildQueued = false;
+        if (wearableSpriteListBox == null) { return; }
+
+        wearableSpriteListBox.ClearChildren();
+        List<WearableSpriteSelection> entries = GetWearableSpriteSelections();
+        if (entries.Count == 0)
+        {
+            CreateEditorMessage(wearableSpriteListBox, selectedClothingPrefab == null ? "No clothing selected." : "Selected clothing has no sprite entries.");
+            RefreshListScrollBar(wearableSpriteListBox);
+            return;
+        }
+
+        foreach (WearableSpriteSelection entry in entries)
+        {
+            ContentXElement element = entry.Sprite.SourceElement;
+            Rectangle rect = GetEffectiveSourceRect(entry.Sprite);
+            string name = element.GetAttributeString("name", "");
+            string label = $"{name}, {entry.Sprite.Limb}, {rect.X},{rect.Y},{rect.Width},{rect.Height}";
+            bool selected = entry.Element == selectedWearableSpriteElement;
+            var button = new GUIButton(new RectTransform(new Vector2(1.0f, 0.0f), wearableSpriteListBox.Content.RectTransform)
+            {
+                MinSize = new Point(0, GUI.IntScale(28))
+            }, label, style: "GUIButtonSmall")
+            {
+                UserData = entry.Element,
+                TextColor = selected ? GUIStyle.Green : GUIStyle.TextColorNormal,
+                Selected = selected,
+                OnClicked = (_, data) =>
+                {
+                    SelectWearableSprite(data as XElement);
+                    return true;
+                }
+            };
+            button.ToolTip = element.Element.ToString(SaveOptions.DisableFormatting);
+        }
+
+        RefreshListScrollBar(wearableSpriteListBox);
+    }
+
+    private void SelectWearableSprite(XElement element)
+    {
+        if (element == null || selectedWearableSpriteElement == element) { return; }
+        selectedWearableSpriteElement = element;
+        QueueWearableEditorRebuild();
+        QueueWearableSpriteListRebuild();
+        UpdateAllViewerSpriteInfo();
+    }
+
+    private bool IsSelectedWearableSpriteElement(ContentXElement element)
+    {
+        return element?.Element != null && element.Element == selectedWearableSpriteElement;
+    }
+
+    private void SelectWearableSpriteFromPreview(ContentXElement element)
+    {
+        if (!wearableEditorEnabled || element?.Element == null) { return; }
+        pendingPreviewSelectedWearableSpriteElement = element.Element;
+    }
+
+    private void ApplyPendingPreviewSelection()
+    {
+        if (pendingPreviewSelectedWearableSpriteElement == null) { return; }
+
+        XElement element = pendingPreviewSelectedWearableSpriteElement;
+        pendingPreviewSelectedWearableSpriteElement = null;
+        if (GetWearableSpriteSelections().None(selection => selection.Element == element)) { return; }
+        SelectWearableSprite(element);
+    }
+
+    private void EnsureSelectedWearableSprite()
+    {
+        List<WearableSpriteSelection> entries = GetWearableSpriteSelections();
+        if (entries.Count == 0)
+        {
+            selectedWearableSpriteElement = null;
+            return;
+        }
+
+        if (selectedWearableSpriteElement == null || entries.None(e => e.Element == selectedWearableSpriteElement))
+        {
+            selectedWearableSpriteElement = entries[0].Element;
+            QueueWearableEditorRebuild();
+            QueueWearableSpriteListRebuild();
+            UpdateAllViewerSpriteInfo();
+        }
+    }
+
+    private WearableSpriteSelection GetSelectedWearableSpriteSelection()
+    {
+        EnsureSelectedWearableSprite();
+        return GetWearableSpriteSelections().FirstOrDefault(e => e.Element == selectedWearableSpriteElement);
+    }
+
+    private List<WearableSpriteSelection> GetWearableSpriteSelections()
+    {
+        return GetSelectedWearableSprites()
+            .Where(static tuple => tuple.sprite?.SourceElement != null)
+            .Select(tuple => new WearableSpriteSelection { Limb = tuple.limb, Sprite = tuple.sprite })
+            .ToList();
+    }
+
     private void PopulateWearableEditorParams()
     {
         wearableEditorRebuildQueued = false;
@@ -124,23 +270,15 @@ public sealed partial class CharacterViewerPlugin
             return;
         }
 
-        List<(Limb limb, WearableSprite sprite)> sprites = GetSelectedWearableSprites()
-            .Where(static tuple => tuple.sprite?.SourceElement != null)
-            .ToList();
-
-        if (sprites.Count == 0)
+        WearableSpriteSelection selection = GetSelectedWearableSpriteSelection();
+        if (selection?.Sprite == null)
         {
             CreateEditorMessage(list, "Selected clothing has no equipped sprite entries.");
             RefreshListScrollBar(list);
             return;
         }
 
-        CreateEditorMessage(list, $"Wearable Editor: {selectedClothingPrefab.Name}");
-        for (int i = 0; i < sprites.Count; i++)
-        {
-            CreateWearableSpriteEditor(list, sprites[i].limb, sprites[i].sprite, i);
-        }
-
+        CreateSelectedWearableSpriteEditor(list, selection.Sprite);
         RefreshListScrollBar(list);
     }
 
@@ -164,7 +302,7 @@ public sealed partial class CharacterViewerPlugin
         list.ScrollBar.Enabled = list.ScrollBarVisible;
     }
 
-    private void CreateWearableSpriteEditor(GUIListBox list, Limb limb, WearableSprite wearableSprite, int index)
+    private void CreateSelectedWearableSpriteEditor(GUIListBox list, WearableSprite wearableSprite)
     {
         ContentXElement spriteElement = wearableSprite.SourceElement;
         XElement element = spriteElement.Element;
@@ -174,94 +312,144 @@ public sealed partial class CharacterViewerPlugin
         }
 
         int entryWidth = Math.Max(GUI.IntScale(340), list.Rect.Width - GUI.IntScale(34));
-        var layout = new GUILayoutGroup(new RectTransform(new Point(entryWidth, GUI.IntScale(480)), list.Content.RectTransform), childAnchor: Anchor.TopLeft)
+        var layout = new GUILayoutGroup(new RectTransform(new Point(entryWidth, GUI.IntScale(1280)), list.Content.RectTransform), childAnchor: Anchor.TopLeft)
         {
             Stretch = false,
             AbsoluteSpacing = GUI.IntScale(4)
         };
 
+        GUITextBlock xmlPreview = null;
+        Action refreshXml = () => RefreshXmlPreview(xmlPreview, spriteElement);
+        Action directRefresh = () =>
+        {
+            refreshXml();
+            QueueWearableSpriteListRebuild();
+            UpdateAllViewerSpriteInfo();
+        };
+        Action reEquipRefresh = () =>
+        {
+            refreshXml();
+            ReequipSelectedWearable();
+        };
+
         string title = spriteElement.GetAttributeString("name", null) ?? $"{selectedClothingPrefab.Name} {wearableSprite.Limb}";
-        new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), layout.RectTransform) { MinSize = new Point(0, GUI.IntScale(24)) },
-            $"{index + 1}. {title}",
+        new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), layout.RectTransform) { MinSize = new Point(0, GUI.IntScale(28)) },
+            title,
             font: GUIStyle.SubHeadingFont,
             wrap: true)
         {
             CanBeFocused = false
         };
 
-        GUITextBlock xmlPreview = null;
-
-        CreateTextInputLine(layout, "name", spriteElement.GetAttributeString("name", ""), value =>
+        CreateStringInputLine(layout, "name", spriteElement, "name", "", value =>
         {
-            SetAttributeValue(spriteElement, "name", value);
-            RefreshXmlPreview(xmlPreview, spriteElement);
+            SetOptionalStringAttribute(spriteElement, "name", value);
+            if (wearableSprite.Sprite != null) { wearableSprite.Sprite.Name = value; }
+            directRefresh();
         });
-        CreateTextInputLine(layout, "texture", spriteElement.GetAttributeString("texture", Path.GetFileName(wearableSprite.SpritePath ?? wearableSprite.Sprite?.FilePath.Value ?? "")), value =>
+        CreateStringInputLine(layout, "texture", spriteElement, "texture", wearableSprite.SpritePath ?? "", value =>
         {
-            SetAttributeValue(spriteElement, "texture", value);
-            RefreshXmlPreview(xmlPreview, spriteElement);
+            SetOptionalStringAttribute(spriteElement, "texture", value);
+            reEquipRefresh();
         });
-
-        var limbRow = CreateEditorRow(layout, "limb");
-        CreateLimbDropdown(limbRow, "limb", spriteElement.GetAttributeString("limb", wearableSprite.Limb.ToString()), false, value =>
+        CreateVector2IntLine(layout, "sourcerect", GetEffectiveSourceRect(wearableSprite), (x, y, w, h) =>
+        {
+            Rectangle rect = new Rectangle(x, y, Math.Max(1, w), Math.Max(1, h));
+            spriteElement.SetAttributeValue("sourcerect", $"{rect.X},{rect.Y},{rect.Width},{rect.Height}");
+            if (wearableSprite.Sprite != null)
+            {
+                wearableSprite.Sprite.SourceRect = rect;
+                wearableSprite.Sprite.RelativeOrigin = wearableSprite.Sprite.RelativeOrigin;
+            }
+            directRefresh();
+        });
+        CreatePointLine(layout, "sheetindex", spriteElement.GetAttributePoint("sheetindex", new Point(-1, -1)), value =>
+        {
+            SetPointAttribute(spriteElement, "sheetindex", value);
+            reEquipRefresh();
+        });
+        CreatePointLine(layout, "sheetelementsize", spriteElement.GetAttributePoint("sheetelementsize", Point.Zero), value =>
+        {
+            SetPointAttribute(spriteElement, "sheetelementsize", value);
+            reEquipRefresh();
+        });
+        CreateVector2FloatLine(layout, "origin", GetEffectiveOrigin(wearableSprite), 0.001f, 4, value =>
+        {
+            value = Vector2.Clamp(value, Vector2.Zero, Vector2.One);
+            spriteElement.SetAttributeValue("origin", $"{FormatFloat(value.X)},{FormatFloat(value.Y)}");
+            if (wearableSprite.Sprite != null) { wearableSprite.Sprite.RelativeOrigin = value; }
+            directRefresh();
+        });
+        CreateVector2FloatLine(layout, "size", spriteElement.GetAttributeVector2("size", Vector2.One), 0.01f, 3, value =>
+        {
+            spriteElement.SetAttributeValue("size", $"{FormatFloat(value.X)},{FormatFloat(value.Y)}");
+            ApplySpriteSize(wearableSprite, value);
+            directRefresh();
+        });
+        CreateFloatLine(layout, "depth", spriteElement.GetAttributeFloat("depth", wearableSprite.Sprite?.Depth ?? 0.001f), 0.001f, 4, value =>
+        {
+            value = MathHelper.Clamp(value, 0.001f, 0.999f);
+            spriteElement.SetAttributeValue("depth", FormatFloat(value));
+            if (wearableSprite.Sprite != null) { wearableSprite.Sprite.Depth = value; }
+            directRefresh();
+        });
+        CreateBoolLine(layout, "compress", spriteElement, "compress", true, reEquipRefresh);
+        CreateLimbDropdownLine(layout, "limb", spriteElement.GetAttributeString("limb", wearableSprite.Limb.ToString()), false, value =>
         {
             SetOptionalAttributeValue(spriteElement, "limb", value, "default");
-            RefreshXmlPreview(xmlPreview, spriteElement);
-            ReequipSelectedWearable();
+            reEquipRefresh();
         });
-        CreateLimbDropdown(limbRow, "depthlimb", ValueOrDefault(spriteElement, "depthlimb", "default"), true, value =>
+        CreateBoolLine(layout, "hidelimb", spriteElement, "hidelimb", false, reEquipRefresh);
+        CreateBoolLine(layout, "hideotherwearables", spriteElement, "hideotherwearables", false, reEquipRefresh);
+        CreateBoolLine(layout, "alphaclipotherwearables", spriteElement, "alphaclipotherwearables", false, reEquipRefresh);
+        CreateBoolLine(layout, "canbehiddenbyotherwearables", spriteElement, "canbehiddenbyotherwearables", true, reEquipRefresh);
+        CreateStringInputLine(layout, "canbehiddenbyitem", spriteElement, "canbehiddenbyitem", "", value =>
+        {
+            SetOptionalStringAttribute(spriteElement, "canbehiddenbyitem", value);
+            reEquipRefresh();
+        });
+        CreateStringInputLine(layout, "hidewearablesoftype", spriteElement, "hidewearablesoftype", "", value =>
+        {
+            SetOptionalStringAttribute(spriteElement, "hidewearablesoftype", value);
+            reEquipRefresh();
+        });
+        CreateBoolLine(layout, "inheritlimbdepth", spriteElement, "inheritlimbdepth", true, reEquipRefresh);
+        CreateLimbDropdownLine(layout, "depthlimb", ValueOrDefault(spriteElement, "depthlimb", "default"), true, value =>
         {
             SetOptionalAttributeValue(spriteElement, "depthlimb", value, "default");
-            RefreshXmlPreview(xmlPreview, spriteElement);
-            ReequipSelectedWearable();
+            reEquipRefresh();
         });
-
-        var boolRow = CreateEditorRow(layout, "flags");
-        CreateBoolTickBox(boolRow, "hidelimb", spriteElement.GetAttributeBool("hidelimb", false), value =>
+        string scaleAttribute = GetInheritTextureScaleAttribute(spriteElement);
+        CreateBoolLine(layout, "inheritscale", spriteElement, scaleAttribute, false, reEquipRefresh);
+        CreateBoolLine(layout, "ignorelimbscale", spriteElement, "ignorelimbscale", false, reEquipRefresh);
+        CreateBoolLine(layout, "ignoretexturescale", spriteElement, "ignoretexturescale", false, reEquipRefresh);
+        CreateBoolLine(layout, "ignoreragdollscale", spriteElement, "ignoreragdollscale", false, reEquipRefresh);
+        CreateBoolLine(layout, "inheritorigin", spriteElement, "inheritorigin", false, reEquipRefresh);
+        CreateBoolLine(layout, "inheritsourcerect", spriteElement, "inheritsourcerect", false, reEquipRefresh);
+        CreateFloatLine(layout, "scale", spriteElement.GetAttributeFloat("scale", 1.0f), 0.01f, 3, value =>
         {
-            SetAttributeValue(spriteElement, "hidelimb", value.ToString().ToLowerInvariant());
-            RefreshXmlPreview(xmlPreview, spriteElement);
-            ReequipSelectedWearable();
+            spriteElement.SetAttributeValue("scale", FormatFloat(value));
+            SetWearableSpriteProperty(wearableSprite, "Scale", value);
+            directRefresh();
         });
-        string textureScaleAttribute = GetInheritTextureScaleAttribute(spriteElement);
-        CreateBoolTickBox(boolRow, "inherittexturescale", spriteElement.GetAttributeBool(textureScaleAttribute, false), value =>
+        CreateFloatLine(layout, "rotation", spriteElement.GetAttributeFloat("rotation", 0.0f), 0.1f, 2, value =>
         {
-            SetAttributeValue(spriteElement, textureScaleAttribute, value.ToString().ToLowerInvariant());
-            RefreshXmlPreview(xmlPreview, spriteElement);
-            ReequipSelectedWearable();
+            spriteElement.SetAttributeValue("rotation", FormatFloat(value));
+            SetWearableSpriteProperty(wearableSprite, "Rotation", MathHelper.ToRadians(value));
+            directRefresh();
         });
-
-        Rectangle sourceRect = wearableSprite.Sprite?.SourceRect ?? spriteElement.GetAttributeRect("sourcerect", Rectangle.Empty);
-        Vector2 origin = wearableSprite.Sprite?.RelativeOrigin ?? spriteElement.GetAttributeVector2("origin", new Vector2(0.5f, 0.5f));
-
-        var rectRow = CreateEditorRow(layout, "sourcerect");
-        CreateIntInput(rectRow, "x", sourceRect.X, value => UpdateSourceRectValue(wearableSprite, r => { r.X = value; return r; }, xmlPreview));
-        CreateIntInput(rectRow, "y", sourceRect.Y, value => UpdateSourceRectValue(wearableSprite, r => { r.Y = value; return r; }, xmlPreview));
-        CreateIntInput(rectRow, "w", sourceRect.Width, value => UpdateSourceRectValue(wearableSprite, r => { r.Width = Math.Max(1, value); return r; }, xmlPreview));
-        CreateIntInput(rectRow, "h", sourceRect.Height, value => UpdateSourceRectValue(wearableSprite, r => { r.Height = Math.Max(1, value); return r; }, xmlPreview));
-
-        var originRow = CreateEditorRow(layout, "origin");
-        CreateFloatInput(originRow, "x", origin.X, value => UpdateOriginValue(wearableSprite, o => { o.X = value; return o; }, xmlPreview));
-        CreateFloatInput(originRow, "y", origin.Y, value => UpdateOriginValue(wearableSprite, o => { o.Y = value; return o; }, xmlPreview));
-
-        var inheritRow = CreateEditorRow(layout, "inherit");
-        CreateDefaultBoolDropdown(inheritRow, "inheritsourcerect", ValueOrDefault(spriteElement, "inheritsourcerect", "default:false"), value =>
+        CreateStringInputLine(layout, "sound", spriteElement, "sound", "", value =>
         {
-            SetDefaultBoolAttribute(spriteElement, "inheritsourcerect", value);
-            RefreshXmlPreview(xmlPreview, spriteElement);
-            ReequipSelectedWearable();
-        });
-        CreateDefaultBoolDropdown(inheritRow, "inheritorigin", ValueOrDefault(spriteElement, "inheritorigin", "default:false"), value =>
-        {
-            SetDefaultBoolAttribute(spriteElement, "inheritorigin", value);
-            RefreshXmlPreview(xmlPreview, spriteElement);
-            ReequipSelectedWearable();
+            SetOptionalStringAttribute(spriteElement, "sound", value);
+            reEquipRefresh();
         });
 
-        xmlPreview = new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), layout.RectTransform) { MinSize = new Point(0, GUI.IntScale(104)) },
-            "",
-            wrap: true,
-            font: GUIStyle.SmallFont)
+        CreateNestedPlaceholder(layout, spriteElement);
+
+        xmlPreview = new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), layout.RectTransform)
+        {
+            MinSize = GetXmlPreviewSize(spriteElement)
+        }, "", wrap: true, font: GUIStyle.SmallFont)
         {
             CanBeFocused = false
         };
@@ -277,61 +465,72 @@ public sealed partial class CharacterViewerPlugin
         {
             RevertWearableSprite(wearableSprite);
             QueueWearableEditorRebuild();
+            QueueWearableSpriteListRebuild();
         });
     }
 
     private static GUILayoutGroup CreateEditorRow(GUILayoutGroup parent, string label)
     {
-        var row = new GUILayoutGroup(new RectTransform(new Vector2(1.0f, 0.0f), parent.RectTransform) { MinSize = new Point(0, GUI.IntScale(32)) }, isHorizontal: true, childAnchor: Anchor.CenterLeft)
+        var row = new GUILayoutGroup(new RectTransform(new Vector2(1.0f, 0.0f), parent.RectTransform) { MinSize = new Point(0, GUI.IntScale(28)) }, isHorizontal: true, childAnchor: Anchor.CenterLeft)
         {
             Stretch = true,
             RelativeSpacing = 0.01f
         };
-        new GUITextBlock(new RectTransform(new Vector2(0.18f, 1.0f), row.RectTransform), label, font: GUIStyle.SmallFont, textAlignment: Alignment.CenterLeft)
+        new GUITextBlock(new RectTransform(new Vector2(0.34f, 1.0f), row.RectTransform), label, font: GUIStyle.SmallFont, textAlignment: Alignment.CenterLeft)
         {
             CanBeFocused = false
         };
         return row;
     }
 
-    private static void CreateReadOnlyLine(GUILayoutGroup parent, string label, string value)
-    {
-        new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), parent.RectTransform) { MinSize = new Point(0, GUI.IntScale(22)) },
-            $"{label} [{value}]",
-            wrap: true,
-            font: GUIStyle.SmallFont)
-        {
-            CanBeFocused = false
-        };
-    }
-
-    private static void CreateTextInputLine(GUILayoutGroup parent, string label, string value, Action<string> onChanged)
+    private static void CreateStringInputLine(GUILayoutGroup parent, string label, ContentXElement element, string attribute, string defaultValue, Action<string> onChanged)
     {
         var row = CreateEditorRow(parent, label);
-        var input = new GUITextBox(new RectTransform(new Vector2(0.78f, 1.0f), row.RectTransform), value ?? "", style: "GUITextBox")
+        string value = element.GetAttributeString(attribute, defaultValue) ?? "";
+        var input = new GUITextBox(new RectTransform(new Vector2(0.64f, 1.0f), row.RectTransform), value, style: "GUITextBox")
         {
             Font = GUIStyle.SmallFont,
             OnTextChangedDelegate = (_, text) =>
             {
-                onChanged(text);
+                onChanged(text ?? "");
                 return true;
             }
         };
-        input.Text = value ?? "";
+    }
+
+    private static void CreateBoolLine(GUILayoutGroup parent, string label, ContentXElement element, string attribute, bool defaultValue, Action onChanged)
+    {
+        var row = CreateEditorRow(parent, label);
+        var tickBox = new GUITickBox(new RectTransform(new Vector2(0.26f, 1.0f), row.RectTransform), "", font: GUIStyle.SmallFont)
+        {
+            Selected = element.GetAttributeBool(attribute, defaultValue),
+            OnSelected = box =>
+            {
+                element.Element.SetAttributeValue(attribute, box.Selected.ToString().ToLowerInvariant());
+                onChanged();
+                return true;
+            }
+        };
+        new GUIButton(new RectTransform(new Vector2(0.36f, 1.0f), row.RectTransform), "Default", style: "GUIButtonSmall")
+        {
+            OnClicked = (_, _) =>
+            {
+                element.Element.SetAttributeValue(attribute, null);
+                onChanged();
+                return true;
+            }
+        };
+    }
+
+    private static void CreateLimbDropdownLine(GUILayoutGroup parent, string label, string value, bool allowDefault, Action<string> onChanged)
+    {
+        var row = CreateEditorRow(parent, label);
+        CreateLimbDropdown(row, label, value, allowDefault, onChanged);
     }
 
     private static void CreateLimbDropdown(GUILayoutGroup row, string label, string value, bool allowDefault, Action<string> onChanged)
     {
-        var holder = new GUILayoutGroup(new RectTransform(new Vector2(0.41f, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
-        {
-            Stretch = true,
-            RelativeSpacing = 0.02f
-        };
-        new GUITextBlock(new RectTransform(new Vector2(0.35f, 1.0f), holder.RectTransform), label, font: GUIStyle.SmallFont, textAlignment: Alignment.CenterLeft)
-        {
-            CanBeFocused = false
-        };
-        var dropDown = new GUIDropDown(new RectTransform(new Vector2(0.62f, 1.0f), holder.RectTransform), string.IsNullOrWhiteSpace(value) ? "default" : value);
+        var dropDown = new GUIDropDown(new RectTransform(new Vector2(0.64f, 1.0f), row.RectTransform), string.IsNullOrWhiteSpace(value) ? "default" : value);
         if (allowDefault)
         {
             dropDown.AddItem("default", "default");
@@ -352,51 +551,53 @@ public sealed partial class CharacterViewerPlugin
         };
     }
 
-    private static void CreateBoolTickBox(GUILayoutGroup row, string label, bool value, Action<bool> onChanged)
+    private static void CreatePointLine(GUILayoutGroup parent, string label, Point value, Action<Point> onChanged)
     {
-        var tickBox = new GUITickBox(new RectTransform(new Vector2(0.41f, 1.0f), row.RectTransform), label, font: GUIStyle.SmallFont)
-        {
-            Selected = value,
-            OnSelected = box =>
-            {
-                onChanged(box.Selected);
-                return true;
-            }
-        };
-        tickBox.TextBlock.Wrap = true;
+        int x = value.X;
+        int y = value.Y;
+        var row = CreateEditorRow(parent, label);
+        CreateIntInput(row, "x", x, newValue => { x = newValue; onChanged(new Point(x, y)); });
+        CreateIntInput(row, "y", y, newValue => { y = newValue; onChanged(new Point(x, y)); });
     }
 
-    private static void CreateDefaultBoolDropdown(GUILayoutGroup row, string label, string value, Action<string> onChanged)
+    private static void CreateVector2IntLine(GUILayoutGroup parent, string label, Rectangle value, Action<int, int, int, int> onChanged)
     {
-        var holder = new GUILayoutGroup(new RectTransform(new Vector2(0.41f, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
+        int x = value.X;
+        int y = value.Y;
+        int w = value.Width;
+        int h = value.Height;
+        var row = CreateEditorRow(parent, label);
+        CreateIntInput(row, "x", x, newValue => { x = newValue; onChanged(x, y, w, h); });
+        CreateIntInput(row, "y", y, newValue => { y = newValue; onChanged(x, y, w, h); });
+        CreateIntInput(row, "w", w, newValue => { w = Math.Max(1, newValue); onChanged(x, y, w, h); });
+        CreateIntInput(row, "h", h, newValue => { h = Math.Max(1, newValue); onChanged(x, y, w, h); });
+    }
+
+    private static void CreateVector2FloatLine(GUILayoutGroup parent, string label, Vector2 value, float step, int decimals, Action<Vector2> onChanged)
+    {
+        float x = value.X;
+        float y = value.Y;
+        var row = CreateEditorRow(parent, label);
+        CreateFloatInput(row, "x", x, step, decimals, newValue => { x = newValue; onChanged(new Vector2(x, y)); });
+        CreateFloatInput(row, "y", y, step, decimals, newValue => { y = newValue; onChanged(new Vector2(x, y)); });
+    }
+
+    private static void CreateFloatLine(GUILayoutGroup parent, string label, float value, float step, int decimals, Action<float> onChanged)
+    {
+        var row = CreateEditorRow(parent, label);
+        var input = new GUINumberInput(new RectTransform(new Vector2(0.64f, 1.0f), row.RectTransform), NumberType.Float, relativeButtonAreaWidth: 0.14f)
         {
-            Stretch = true,
-            RelativeSpacing = 0.02f
+            FloatValue = value,
+            ValueStep = step,
+            DecimalsToDisplay = decimals,
+            Font = GUIStyle.SmallFont
         };
-        new GUITextBlock(new RectTransform(new Vector2(0.48f, 1.0f), holder.RectTransform), label, font: GUIStyle.SmallFont, textAlignment: Alignment.CenterLeft)
-        {
-            CanBeFocused = false
-        };
-        string selected = string.IsNullOrWhiteSpace(value) ? "default:false" : value;
-        var dropDown = new GUIDropDown(new RectTransform(new Vector2(0.49f, 1.0f), holder.RectTransform), selected);
-        foreach (string option in new[] { "default:false", "false", "true" })
-        {
-            dropDown.AddItem(option, option);
-        }
-        dropDown.SelectItem(selected);
-        dropDown.OnSelected = (_, data) =>
-        {
-            if (data is string selectedValue)
-            {
-                onChanged(selectedValue);
-            }
-            return true;
-        };
+        input.OnValueChanged += numberInput => onChanged(numberInput.FloatValue);
     }
 
     private static void CreateIntInput(GUILayoutGroup row, string label, int value, Action<int> onChanged)
     {
-        var holder = new GUILayoutGroup(new RectTransform(new Vector2(0.205f, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
+        var holder = new GUILayoutGroup(new RectTransform(new Vector2(0.16f, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
         {
             Stretch = true,
             RelativeSpacing = 0.02f
@@ -405,15 +606,14 @@ public sealed partial class CharacterViewerPlugin
         var input = new GUINumberInput(new RectTransform(new Vector2(0.72f, 1.0f), holder.RectTransform), NumberType.Int, relativeButtonAreaWidth: 0.2f)
         {
             IntValue = value,
-            MinValueInt = 0,
             Font = GUIStyle.SmallFont
         };
         input.OnValueChanged += numberInput => onChanged(numberInput.IntValue);
     }
 
-    private static void CreateFloatInput(GUILayoutGroup row, string label, float value, Action<float> onChanged)
+    private static void CreateFloatInput(GUILayoutGroup row, string label, float value, float step, int decimals, Action<float> onChanged)
     {
-        var holder = new GUILayoutGroup(new RectTransform(new Vector2(0.41f, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
+        var holder = new GUILayoutGroup(new RectTransform(new Vector2(0.32f, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
         {
             Stretch = true,
             RelativeSpacing = 0.02f
@@ -422,10 +622,8 @@ public sealed partial class CharacterViewerPlugin
         var input = new GUINumberInput(new RectTransform(new Vector2(0.78f, 1.0f), holder.RectTransform), NumberType.Float, relativeButtonAreaWidth: 0.2f)
         {
             FloatValue = value,
-            MinValueFloat = 0.0f,
-            MaxValueFloat = 1.0f,
-            ValueStep = 0.001f,
-            DecimalsToDisplay = 4,
+            ValueStep = step,
+            DecimalsToDisplay = decimals,
             Font = GUIStyle.SmallFont
         };
         input.OnValueChanged += numberInput => onChanged(numberInput.FloatValue);
@@ -443,43 +641,30 @@ public sealed partial class CharacterViewerPlugin
         };
     }
 
-    private void UpdateSourceRectValue(WearableSprite wearableSprite, Func<Rectangle, Rectangle> edit, GUITextBlock xmlPreview)
+    private static void CreateNestedPlaceholder(GUILayoutGroup parent, ContentXElement spriteElement)
     {
-        if (wearableSprite?.Sprite == null) { return; }
-
-        Rectangle rect = wearableSprite.Sprite.SourceRect;
-        rect = edit(rect);
-        rect.Width = Math.Max(1, rect.Width);
-        rect.Height = Math.Max(1, rect.Height);
-
-        wearableSprite.SourceElement.SetAttributeValue("sourcerect", $"{rect.X},{rect.Y},{rect.Width},{rect.Height}");
-        wearableSprite.Sprite.SourceRect = rect;
-        wearableSprite.Sprite.RelativeOrigin = wearableSprite.Sprite.RelativeOrigin;
-
-        RefreshXmlPreview(xmlPreview, wearableSprite.SourceElement);
-        UpdateAllViewerSpriteInfo();
-    }
-
-    private void UpdateOriginValue(WearableSprite wearableSprite, Func<Vector2, Vector2> edit, GUITextBlock xmlPreview)
-    {
-        if (wearableSprite?.Sprite == null) { return; }
-
-        Vector2 origin = wearableSprite.Sprite.RelativeOrigin;
-        origin = edit(origin);
-        origin = Vector2.Clamp(origin, Vector2.Zero, Vector2.One);
-
-        wearableSprite.SourceElement.SetAttributeValue("origin", $"{FormatFloat(origin.X)},{FormatFloat(origin.Y)}");
-        wearableSprite.Sprite.RelativeOrigin = origin;
-
-        RefreshXmlPreview(xmlPreview, wearableSprite.SourceElement);
-        UpdateAllViewerSpriteInfo();
+        int lightCount = spriteElement.Elements().Count(e => e.Name.ToString().Equals("LightComponent", StringComparison.OrdinalIgnoreCase));
+        int overrideCount = spriteElement.Elements().Count(e => e.Name.ToString().Equals("override", StringComparison.OrdinalIgnoreCase));
+        new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), parent.RectTransform) { MinSize = new Point(0, GUI.IntScale(44)) },
+            $"Nested nodes: LightComponent [{lightCount}]  override [{overrideCount}]\nNested node editing: planned",
+            wrap: true,
+            font: GUIStyle.SmallFont)
+        {
+            CanBeFocused = false,
+            TextColor = GUIStyle.TextColorDim
+        };
     }
 
     private void ReequipSelectedWearable()
     {
         if (selectedClothingPrefab == null) { return; }
+        XElement selected = selectedWearableSpriteElement;
         EquipViewerClothing(selectedClothingPrefab);
+        selectedWearableSpriteElement = selected;
+        EnsureSelectedWearableSprite();
         QueueWearableEditorRebuild();
+        QueueWearableSpriteListRebuild();
+        UpdateAllViewerSpriteInfo();
     }
 
     private void RevertWearableSprite(WearableSprite wearableSprite)
@@ -501,6 +686,10 @@ public sealed partial class CharacterViewerPlugin
 
         wearableSprite.Sprite.SourceRect = wearableSprite.SourceElement.GetAttributeRect("sourcerect", wearableSprite.Sprite.SourceRect);
         wearableSprite.Sprite.RelativeOrigin = wearableSprite.SourceElement.GetAttributeVector2("origin", wearableSprite.Sprite.RelativeOrigin);
+        wearableSprite.Sprite.Depth = wearableSprite.SourceElement.GetAttributeFloat("depth", wearableSprite.Sprite.Depth);
+        ApplySpriteSize(wearableSprite, wearableSprite.SourceElement.GetAttributeVector2("size", Vector2.One));
+        SetWearableSpriteProperty(wearableSprite, "Scale", wearableSprite.SourceElement.GetAttributeFloat("scale", 1.0f));
+        SetWearableSpriteProperty(wearableSprite, "Rotation", MathHelper.ToRadians(wearableSprite.SourceElement.GetAttributeFloat("rotation", 0.0f)));
     }
 
     private void SaveWearableXml(ContentXElement spriteElement)
@@ -570,30 +759,48 @@ public sealed partial class CharacterViewerPlugin
     private static void RefreshXmlPreview(GUITextBlock textBlock, ContentXElement element)
     {
         if (textBlock == null || element == null) { return; }
-        textBlock.Text = $"XML code: [{element.Element.ToString(SaveOptions.DisableFormatting)}]";
+        textBlock.Text = $"XML code:\n{element.Element.ToString(SaveOptions.None)}";
+        textBlock.RectTransform.MinSize = GetXmlPreviewSize(element);
     }
 
-    private static string ValueOrDefault(ContentXElement element, string attribute, string defaultText)
+    private static Point GetXmlPreviewSize(ContentXElement element)
     {
-        string value = element.GetAttributeString(attribute, null);
-        return string.IsNullOrWhiteSpace(value) ? defaultText : value;
+        int lines = element?.Element?.ToString(SaveOptions.None).Split('\n').Length ?? 1;
+        return new Point(0, MathHelper.Clamp(GUI.IntScale(18 + lines * 16), GUI.IntScale(76), GUI.IntScale(260)));
     }
 
-    private static string GetInheritTextureScaleText(ContentXElement element)
+    private static Rectangle GetEffectiveSourceRect(WearableSprite wearableSprite)
     {
-        string inheritScale = element.GetAttributeString("inheritscale", null);
-        if (!string.IsNullOrWhiteSpace(inheritScale)) { return $"inheritscale:{inheritScale}"; }
-        return ValueOrDefault(element, "inherittexturescale", "default:false");
+        return wearableSprite?.Sprite?.SourceRect ?? wearableSprite?.SourceElement?.GetAttributeRect("sourcerect", Rectangle.Empty) ?? Rectangle.Empty;
     }
 
-    private static string GetInheritTextureScaleAttribute(ContentXElement element)
+    private static Vector2 GetEffectiveOrigin(WearableSprite wearableSprite)
     {
-        return element.GetAttributeString("inheritscale", null) == null ? "inherittexturescale" : "inheritscale";
+        return wearableSprite?.Sprite?.RelativeOrigin ?? wearableSprite?.SourceElement?.GetAttributeVector2("origin", new Vector2(0.5f, 0.5f)) ?? new Vector2(0.5f, 0.5f);
     }
 
-    private static void SetAttributeValue(ContentXElement element, string attribute, string value)
+    private static void ApplySpriteSize(WearableSprite wearableSprite, Vector2 relativeSize)
     {
-        element?.Element?.SetAttributeValue(attribute, value ?? "");
+        if (wearableSprite?.Sprite == null) { return; }
+        Rectangle rect = wearableSprite.Sprite.SourceRect;
+        wearableSprite.Sprite.size = new Vector2(relativeSize.X * rect.Width, relativeSize.Y * rect.Height);
+    }
+
+    private static void SetWearableSpriteProperty(WearableSprite wearableSprite, string propertyName, object value)
+    {
+        if (wearableSprite == null) { return; }
+        AccessTools.Property(wearableSprite.GetType(), propertyName)?.SetValue(wearableSprite, value);
+    }
+
+    private static void SetPointAttribute(ContentXElement element, string attribute, Point value)
+    {
+        element?.Element?.SetAttributeValue(attribute, $"{value.X},{value.Y}");
+    }
+
+    private static void SetOptionalStringAttribute(ContentXElement element, string attribute, string value)
+    {
+        if (element?.Element == null) { return; }
+        element.Element.SetAttributeValue(attribute, string.IsNullOrWhiteSpace(value) ? null : value);
     }
 
     private static void SetOptionalAttributeValue(ContentXElement element, string attribute, string value, string defaultValue)
@@ -602,10 +809,17 @@ public sealed partial class CharacterViewerPlugin
         element.Element.SetAttributeValue(attribute, string.Equals(value, defaultValue, StringComparison.OrdinalIgnoreCase) ? null : value);
     }
 
-    private static void SetDefaultBoolAttribute(ContentXElement element, string attribute, string value)
+    private static string ValueOrDefault(ContentXElement element, string attribute, string defaultText)
     {
-        if (element?.Element == null) { return; }
-        element.Element.SetAttributeValue(attribute, string.Equals(value, "default:false", StringComparison.OrdinalIgnoreCase) ? null : value);
+        string value = element.GetAttributeString(attribute, null);
+        return string.IsNullOrWhiteSpace(value) ? defaultText : value;
+    }
+
+    private static string GetInheritTextureScaleAttribute(ContentXElement element)
+    {
+        return element.GetAttributeString("inheritscale", null) == null && element.GetAttributeString("inherittexturescale", null) != null
+            ? "inherittexturescale"
+            : "inheritscale";
     }
 
     private static string FormatFloat(float value)

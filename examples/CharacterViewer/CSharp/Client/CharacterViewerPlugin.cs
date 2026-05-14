@@ -30,6 +30,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     private GUIFrame bodySpriteWindow;
     private GUIFrame headSpriteWindow;
     private GUIFrame clothingSpriteWindow;
+    private GUIFrame wearableSpriteListWindow;
     private GUITextBlock clothingInfoText;
     private GUITextBlock statusText;
     private GUITextBox searchBox;
@@ -37,6 +38,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     private GUIListBox bodySpriteInfoList;
     private GUIListBox headSpriteInfoList;
     private GUIListBox clothingSpriteInfoList;
+    private GUIListBox wearableSpriteListBox;
     private ItemPrefab selectedClothingPrefab;
     private string searchText = string.Empty;
     private Identifier selectedGender = Identifier.Empty;
@@ -161,23 +163,44 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     {
         if (Screen.Selected is not CharacterEditorScreen) { return; }
         EnsureEditorPanelControls();
-        if (!panelsEnabled || IsBlockingGameMenuOpen())
+        if ((!panelsEnabled && !wearableEditorEnabled) || IsBlockingGameMenuOpen())
         {
             RemoveWindows();
             return;
         }
 
-        if (recreateGuiQueued || headWindow == null || clothingWindow == null ||
-            bodySpriteWindow == null || headSpriteWindow == null || clothingSpriteWindow == null)
+        if (panelsEnabled &&
+            (recreateGuiQueued || headWindow == null || clothingWindow == null ||
+             bodySpriteWindow == null || headSpriteWindow == null || clothingSpriteWindow == null))
         {
             RecreateWindows();
         }
+        else if (!panelsEnabled && (headWindow != null || clothingWindow != null ||
+            bodySpriteWindow != null || headSpriteWindow != null || clothingSpriteWindow != null))
+        {
+            RemoveViewerWindows();
+        }
 
-        headWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
-        clothingWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
-        bodySpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
-        headSpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
-        clothingSpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+        if (wearableEditorEnabled && wearableSpriteListWindow == null)
+        {
+            CreateWearableSpriteListWindow();
+        }
+        else if (!wearableEditorEnabled && wearableSpriteListWindow != null)
+        {
+            RemoveWindow(wearableSpriteListWindow);
+            wearableSpriteListWindow = null;
+            wearableSpriteListBox = null;
+        }
+
+        if (panelsEnabled)
+        {
+            headWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+            clothingWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+            bodySpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+            headSpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+            clothingSpriteWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+        }
+        wearableSpriteListWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
     }
 
     private void OnCharacterEditorUpdated()
@@ -188,7 +211,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         UpdateShortcuts();
         UpdateWearableEditor();
 
-        if (panelsEnabled && !IsBlockingGameMenuOpen())
+        if ((panelsEnabled || wearableEditorEnabled) && !IsBlockingGameMenuOpen())
         {
             UpdateWindowDragging();
         }
@@ -332,6 +355,16 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     }
 
     private void RemoveWindows()
+    {
+        RemoveViewerWindows();
+        RemoveWindow(wearableSpriteListWindow);
+        wearableSpriteListWindow = null;
+        wearableSpriteListBox = null;
+        draggedWindow = null;
+        resizedWindow = null;
+    }
+
+    private void RemoveViewerWindows()
     {
         RemoveWindow(headWindow);
         RemoveWindow(clothingWindow);
@@ -995,6 +1028,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         if (IsWindowHeaderHovered(bodySpriteWindow)) { return bodySpriteWindow; }
         if (IsWindowHeaderHovered(headSpriteWindow)) { return headSpriteWindow; }
         if (IsWindowHeaderHovered(clothingSpriteWindow)) { return clothingSpriteWindow; }
+        if (IsWindowHeaderHovered(wearableSpriteListWindow)) { return wearableSpriteListWindow; }
         return null;
     }
 
@@ -1005,6 +1039,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         if (IsResizeHandleHovered(bodySpriteWindow)) { return bodySpriteWindow; }
         if (IsResizeHandleHovered(headSpriteWindow)) { return headSpriteWindow; }
         if (IsResizeHandleHovered(clothingSpriteWindow)) { return clothingSpriteWindow; }
+        if (IsResizeHandleHovered(wearableSpriteListWindow)) { return wearableSpriteListWindow; }
         return null;
     }
 

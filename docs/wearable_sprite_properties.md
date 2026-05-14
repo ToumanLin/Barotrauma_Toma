@@ -43,5 +43,29 @@ Because `WearableSprite` is built on top of the base `Sprite` class, the propert
 
 ## Nested Elements
 
-Additionally, `<sprite>` elements inside `<Wearable>` can have nested child nodes:
-* **`<LightComponent>`**: You can attach one or more light components inside the sprite if you want the wearable to emit light (e.g., a diving mask or a headlamp).
+Based on how the game's code parses the `<sprite>` tag inside a `<Wearable>` component, there are exactly two valid nested child nodes it can have:
+
+### 1. `<LightComponent>`
+This is used to attach a light source that follows the wearable sprite (e.g., a glowing diving mask, headlamp, or radioactive glow).
+
+**Example usage:**
+```xml
+<sprite name="Diving Suit Helmet" texture="suit.png" sourcerect="0,0,128,128" limb="Head">
+    <LightComponent range="200.0" lightcolor="255,255,255,255" powerconsumption="10" IsOn="true" castshadows="true">
+        <!-- LightComponent itself can also have its own <sprite> or <lighttexture> children -->
+    </LightComponent>
+</sprite>
+```
+
+### 2. `<override>`
+This is a base sprite feature used for **localization**. It allows you to override properties of the sprite (usually the `texture` or `sourcerect`) when a specific language is selected by the user.
+
+**Example usage:**
+```xml
+<sprite texture="default_clothing.png" sourcerect="0,0,50,50" limb="Torso">
+    <!-- If the user's language is French, it swaps to a different texture -->
+    <override language="French" texture="french_clothing.png" sourcerect="0,0,50,50" />
+</sprite>
+```
+
+Other components such as `<ItemComponent>`, `<CustomInterface>`, or `<ItemContainer>` cannot be nested inside a `<sprite>`, but must be nested at the root `<Item>` level alongside the `<Wearable>` tag.

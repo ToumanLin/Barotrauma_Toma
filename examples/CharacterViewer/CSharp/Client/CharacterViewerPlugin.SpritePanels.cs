@@ -36,19 +36,19 @@ public sealed partial class CharacterViewerPlugin
 
     private void CreateBodySpriteWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Body Sprite", new Point(420, 360), new Point(1200, 15), out bodySpriteWindow);
+        GUILayoutGroup content = CreateFloatingWindow("Body Sprite", new Point(470, 380), new Point(300, 275), out bodySpriteWindow);
         bodySpriteInfoList = CreateSpritePreviewPanel(content, "Body Sprites", bodySpritePreviewZoom, value => bodySpritePreviewZoom = value);
     }
 
     private void CreateHeadSpriteWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Head Sprite", new Point(420, 360), new Point(1200, 265), out headSpriteWindow);
+        GUILayoutGroup content = CreateFloatingWindow("Head Sprite", new Point(470, 380), new Point(300, 305), out headSpriteWindow);
         headSpriteInfoList = CreateSpritePreviewPanel(content, "Head Sprites", headSpritePreviewZoom, value => headSpritePreviewZoom = value);
     }
 
     private void CreateClothingSpriteWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Clothing Sprite", new Point(420, 400), new Point(1200, 625), out clothingSpriteWindow);
+        GUILayoutGroup content = CreateFloatingWindow("Clothing Sprite", new Point(470, 400), new Point(300, 335), out clothingSpriteWindow);
         clothingSpriteInfoList = CreateSpritePreviewPanel(content, "Clothing Sprites", clothingSpritePreviewZoom, value => clothingSpritePreviewZoom = value);
     }
 
@@ -371,11 +371,17 @@ public sealed partial class CharacterViewerPlugin
                     sheetRect.Y + (int)(source.Y * zoom),
                     Math.Max(1, (int)(source.Width * zoom)),
                     Math.Max(1, (int)(source.Height * zoom)));
-                Color outline = dest.Contains(mousePos) ? Color.Yellow : Color.Red;
-                GUI.DrawRectangle(spriteBatch, dest, outline, isFilled: false, thickness: dest.Contains(mousePos) ? 2 : 1);
+                bool isHovered = dest.Contains(mousePos);
+                bool isSelected = IsSelectedWearableSpriteElement(entry.SourceElement);
+                Color outline = isSelected ? Color.Cyan : isHovered ? Color.Yellow : Color.Red;
+                GUI.DrawRectangle(spriteBatch, dest, outline, isFilled: false, thickness: isSelected || isHovered ? 2 : 1);
                 if (dest.Contains(mousePos))
                 {
                     tooltip = entry.Tooltip;
+                    if (PlayerInput.PrimaryMouseButtonClicked())
+                    {
+                        SelectWearableSpriteFromPreview(entry.SourceElement);
+                    }
                 }
             }
 
