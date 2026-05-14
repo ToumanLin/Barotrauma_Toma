@@ -21,6 +21,8 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 
     private readonly List<Item> viewerEquippedItems = new List<Item>();
     private readonly Dictionary<string, Point> windowOffsets = new Dictionary<string, Point>();
+    private readonly Dictionary<string, Point> windowSizes = new Dictionary<string, Point>();
+    private readonly Dictionary<string, Point> windowMinimumSizes = new Dictionary<string, Point>();
 
     private Harmony harmony;
     private GUIFrame headWindow;
@@ -47,6 +49,9 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     private bool panelsEnabled;
     private GUIFrame draggedWindow;
     private Vector2 draggedWindowOffset;
+    private GUIFrame resizedWindow;
+    private Point resizedWindowStartSize;
+    private Point resizedWindowStartMouse;
 
     public void PreInitPatching()
     {
@@ -156,7 +161,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     {
         if (Screen.Selected is not CharacterEditorScreen) { return; }
         EnsureEditorPanelControls();
-        if (!panelsEnabled || GUIMessageBox.VisibleBox != null || GUI.PauseMenuOpen)
+        if (!panelsEnabled || IsBlockingGameMenuOpen())
         {
             RemoveWindows();
             return;
@@ -181,8 +186,9 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 
         EnsureEditorPanelControls();
         UpdateShortcuts();
+        UpdateWearableEditor();
 
-        if (panelsEnabled && GUIMessageBox.VisibleBox == null && !GUI.PauseMenuOpen)
+        if (panelsEnabled && !IsBlockingGameMenuOpen())
         {
             UpdateWindowDragging();
         }
@@ -192,18 +198,23 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     {
         if (Screen.Selected is not CharacterEditorScreen) { return; }
         if (GUI.KeyboardDispatcher.Subscriber != null) { return; }
-        if (!PlayerInput.KeyHit(Keys.D6)) { return; }
-
-        panelsEnabled = !panelsEnabled;
-        if (!panelsEnabled)
+        if (PlayerInput.KeyHit(Keys.D6))
         {
-            RemoveWindows();
+            panelsEnabled = !panelsEnabled;
+            if (!panelsEnabled)
+            {
+                RemoveWindows();
+            }
+            else
+            {
+                QueueGuiRecreate();
+            }
+            SyncPanelToggle();
         }
-        else
+        else if (PlayerInput.KeyHit(Keys.D7))
         {
-            QueueGuiRecreate();
+            SetWearableEditorEnabled(!wearableEditorEnabled);
         }
-        SyncPanelToggle();
     }
 
     private void EnsureEditorPanelControls()
@@ -238,27 +249,45 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     {
         GUIFrame modesPanel = AccessTools.Field(editor.GetType(), "modesPanel")?.GetValue(editor) as GUIFrame;
         GUILayoutGroup layout = modesPanel?.GetChild<GUILayoutGroup>();
-        if (layout == null || layout.GetAllChildren().Any(c => c.UserData as string == "CharacterViewer.PanelToggle")) { return; }
+        if (layout == null) { return; }
 
-        var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), "CHARACTER VIEWER [6]")
+        if (!layout.GetAllChildren().Any(c => c.UserData as string == "CharacterViewer.PanelToggle"))
         {
-            UserData = "CharacterViewer.PanelToggle",
-            Selected = panelsEnabled,
-            OnSelected = box =>
+            var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), "CHARACTER VIEWER [6]")
             {
-                panelsEnabled = box.Selected;
-                if (!panelsEnabled)
+                UserData = "CharacterViewer.PanelToggle",
+                Selected = panelsEnabled,
+                OnSelected = box =>
                 {
-                    RemoveWindows();
+                    panelsEnabled = box.Selected;
+                    if (!panelsEnabled)
+                    {
+                        RemoveWindows();
+                    }
+                    else
+                    {
+                        QueueGuiRecreate();
+                    }
+                    return true;
                 }
-                else
+            };
+            modesPanel.RectTransform.MinSize += new Point(0, tickBox.RectTransform.MinSize.Y + layout.AbsoluteSpacing);
+        }
+
+        if (!layout.GetAllChildren().Any(c => c.UserData as string == "CharacterViewer.WearableEditorToggle"))
+        {
+            var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), "WEARABLE EDITOR [7]")
+            {
+                UserData = "CharacterViewer.WearableEditorToggle",
+                Selected = wearableEditorEnabled,
+                OnSelected = box =>
                 {
-                    QueueGuiRecreate();
+                    SetWearableEditorEnabled(box.Selected);
+                    return true;
                 }
-                return true;
-            }
-        };
-        modesPanel.RectTransform.MinSize += new Point(0, tickBox.RectTransform.MinSize.Y + layout.AbsoluteSpacing);
+            };
+            modesPanel.RectTransform.MinSize += new Point(0, tickBox.RectTransform.MinSize.Y + layout.AbsoluteSpacing);
+        }
         layout.Recalculate();
     }
 
@@ -280,6 +309,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             ApplySelectedGender();
         }
         UpdateAllViewerSpriteInfo();
+        QueueWearableEditorRebuild();
         QueueGuiRecreate();
     }
 
@@ -325,6 +355,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         spriteHorizontalScrollOffsets.Clear();
         spriteCanvasWidths.Clear();
         draggedWindow = null;
+        resizedWindow = null;
     }
 
     private static void RemoveWindow(GUIFrame window)
@@ -337,8 +368,10 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     private GUILayoutGroup CreateFloatingWindow(string title, Point size, Point defaultOffset, out GUIFrame window)
     {
         Point offset = windowOffsets.TryGetValue(title, out Point storedOffset) ? storedOffset : defaultOffset;
+        Point storedSize = windowSizes.TryGetValue(title, out Point savedSize) ? savedSize : size;
+        windowMinimumSizes[title] = size;
         window = new GUIFrame(
-            new RectTransform(size.Multiply(GUI.Scale), GUI.Canvas, Anchor.TopLeft, Pivot.TopLeft)
+            new RectTransform(storedSize, GUI.Canvas, Anchor.TopLeft, Pivot.TopLeft)
             {
                 AbsoluteOffset = offset.Multiply(GUI.Scale)
             },
@@ -363,6 +396,16 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         {
             Stretch = true,
             AbsoluteSpacing = GUI.IntScale(5)
+        };
+
+        var resizeHandle = new GUIFrame(new RectTransform(new Point(18, 18).Multiply(GUI.Scale), window.RectTransform, Anchor.BottomRight, Pivot.BottomRight), style: "GUIFrameListBox")
+        {
+            UserData = "CharacterViewer.ResizeHandle",
+            ToolTip = "Resize"
+        };
+        new GUITextBlock(new RectTransform(Vector2.One, resizeHandle.RectTransform), "/", font: GUIStyle.SmallFont, textAlignment: Alignment.Center)
+        {
+            CanBeFocused = false
         };
 
         return content;
@@ -548,6 +591,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             if (suppressClothingSelection) { return true; }
             selectedClothingPrefab = data as ItemPrefab;
             EquipViewerClothing(selectedClothingPrefab);
+            QueueWearableEditorRebuild();
             return true;
         };
         PopulateClothingDropDown();
@@ -567,6 +611,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             UpdateClothingInfo("No clothing selected.");
             UpdateAllViewerSpriteInfo();
             PopulateClothingDropDown();
+            QueueWearableEditorRebuild();
         });
 
         clothingInfoText = new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.38f), content.RectTransform), "", wrap: true, font: GUIStyle.SmallFont);
@@ -638,6 +683,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         selectedClothingPrefab = prefabs[nextIndex];
         clothingDropDown?.SelectItem(selectedClothingPrefab);
         EquipViewerClothing(selectedClothingPrefab);
+        QueueWearableEditorRebuild();
     }
 
     private void EquipViewerClothing(ItemPrefab prefab)
@@ -647,6 +693,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         {
             UpdateClothingInfo("No clothing selected.");
             UpdateAllViewerSpriteInfo();
+            QueueWearableEditorRebuild();
             return;
         }
 
@@ -655,6 +702,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         {
             UpdateClothingInfo("No character inventory available.");
             UpdateAllViewerSpriteInfo();
+            QueueWearableEditorRebuild();
             return;
         }
 
@@ -672,6 +720,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
                 item.Remove();
                 UpdateClothingInfo("Selected item has no wearable component.");
                 UpdateAllViewerSpriteInfo();
+                QueueWearableEditorRebuild();
                 return;
             }
             if (pickable == null)
@@ -679,6 +728,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
                 item.Remove();
                 UpdateClothingInfo("Selected item has no pickable component.");
                 UpdateAllViewerSpriteInfo();
+                QueueWearableEditorRebuild();
                 return;
             }
 
@@ -692,6 +742,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
                 item.Remove();
                 UpdateClothingInfo("Could not equip the selected item in any allowed slot.");
                 UpdateAllViewerSpriteInfo();
+                QueueWearableEditorRebuild();
                 return;
             }
 
@@ -699,6 +750,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             viewerEquippedItems.Add(item);
             UpdateClothingInfo("Equipped for preview.");
             UpdateAllViewerSpriteInfo();
+            QueueWearableEditorRebuild();
         }
         catch (Exception ex)
         {
@@ -706,6 +758,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             LuaCsLogger.LogError($"CharacterViewer failed to equip {prefab.Identifier}: {ex}");
             UpdateClothingInfo("Failed to equip selected clothing. See console for details.");
             UpdateAllViewerSpriteInfo();
+            QueueWearableEditorRebuild();
         }
     }
 
@@ -819,6 +872,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             selectedClothingPrefab = null;
             searchText = string.Empty;
             UpdateAllViewerSpriteInfo();
+            QueueWearableEditorRebuild();
             messageBox.Close();
             QueueGuiRecreate();
         }
@@ -857,6 +911,11 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 
     private void UpdateWindowDragging()
     {
+        if (UpdateWindowResizing())
+        {
+            return;
+        }
+
         GUIFrame hoverWindow = GetHoveredWindow();
         if (PlayerInput.PrimaryMouseButtonDown() && hoverWindow != null && !IsInteractiveChild(GUI.MouseOn))
         {
@@ -884,6 +943,43 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         }
     }
 
+    private bool UpdateWindowResizing()
+    {
+        GUIFrame hoverWindow = GetResizeHoveredWindow();
+        if (PlayerInput.PrimaryMouseButtonDown() && hoverWindow != null)
+        {
+            resizedWindow = hoverWindow;
+            resizedWindowStartSize = resizedWindow.RectTransform.NonScaledSize;
+            resizedWindowStartMouse = PlayerInput.MousePosition.ToPoint();
+        }
+
+        if (PlayerInput.PrimaryMouseButtonHeld() && resizedWindow != null)
+        {
+            GUI.MouseCursor = CursorState.Dragging;
+            string title = resizedWindow.UserData as string;
+            Point minSize = title != null && windowMinimumSizes.TryGetValue(title, out Point storedMinSize) ? storedMinSize : resizedWindowStartSize;
+            Point mouseDelta = PlayerInput.MousePosition.ToPoint() - resizedWindowStartMouse;
+            Point newSize = new Point(
+                Math.Max(minSize.X, resizedWindowStartSize.X + (int)(mouseDelta.X / GUI.Scale)),
+                Math.Max(minSize.Y, resizedWindowStartSize.Y + (int)(mouseDelta.Y / GUI.Scale)));
+            newSize.X = Math.Min(newSize.X, Math.Max(minSize.X, (int)(GameMain.GraphicsWidth / GUI.Scale)));
+            newSize.Y = Math.Min(newSize.Y, Math.Max(minSize.Y, (int)(GameMain.GraphicsHeight / GUI.Scale)));
+            resizedWindow.RectTransform.Resize(newSize, resizeChildren: true);
+            return true;
+        }
+
+        if (resizedWindow?.UserData is string resizedTitle)
+        {
+            Point storedSize = resizedWindow.RectTransform.NonScaledSize;
+            windowSizes[resizedTitle] = storedSize;
+            resizedWindow = null;
+            QueueGuiRecreate();
+            return true;
+        }
+
+        return false;
+    }
+
     private GUIFrame GetHoveredWindow()
     {
         if (IsWindowHeaderHovered(headWindow)) { return headWindow; }
@@ -891,6 +987,16 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         if (IsWindowHeaderHovered(bodySpriteWindow)) { return bodySpriteWindow; }
         if (IsWindowHeaderHovered(headSpriteWindow)) { return headSpriteWindow; }
         if (IsWindowHeaderHovered(clothingSpriteWindow)) { return clothingSpriteWindow; }
+        return null;
+    }
+
+    private GUIFrame GetResizeHoveredWindow()
+    {
+        if (IsResizeHandleHovered(headWindow)) { return headWindow; }
+        if (IsResizeHandleHovered(clothingWindow)) { return clothingWindow; }
+        if (IsResizeHandleHovered(bodySpriteWindow)) { return bodySpriteWindow; }
+        if (IsResizeHandleHovered(headSpriteWindow)) { return headSpriteWindow; }
+        if (IsResizeHandleHovered(clothingSpriteWindow)) { return clothingSpriteWindow; }
         return null;
     }
 
@@ -905,9 +1011,22 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         return headerRect.Contains(PlayerInput.MousePosition);
     }
 
+    private static bool IsResizeHandleHovered(GUIFrame window)
+    {
+        if (window == null) { return false; }
+        int handleSize = GUI.IntScale(24);
+        Rectangle handleRect = new Rectangle(window.Rect.Right - handleSize, window.Rect.Bottom - handleSize, handleSize, handleSize);
+        return handleRect.Contains(PlayerInput.MousePosition);
+    }
+
     private static bool IsInteractiveChild(GUIComponent component)
     {
         return component is GUIButton or GUIDropDown or GUITextBox or GUIListBox or GUITickBox;
+    }
+
+    private static bool IsBlockingGameMenuOpen()
+    {
+        return GUIMessageBox.VisibleBox != null || GUI.PauseMenuOpen || GUI.SettingsMenuOpen;
     }
 
     private static Character CurrentCharacter => GameMain.CharacterEditorScreen?.SpawnedCharacter;

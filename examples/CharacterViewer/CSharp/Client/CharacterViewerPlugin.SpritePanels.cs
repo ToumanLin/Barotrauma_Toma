@@ -27,6 +27,7 @@ public sealed partial class CharacterViewerPlugin
         public bool InheritSourceRect;
         public bool InheritOrigin;
         public string FilePath;
+        public ContentXElement SourceElement;
 
         public string Tooltip =>
             $"{Title}\nFile: {Path.GetFileName(FilePath)}\nRect: {SourceRect.X}, {SourceRect.Y}, {SourceRect.Width}, {SourceRect.Height}{(InheritSourceRect ? " (inherited)" : string.Empty)}\nOrigin: {Origin.X:0.##}, {Origin.Y:0.##}{(InheritOrigin ? " (inherited)" : string.Empty)}\nScale: {Scale:0.###}";
@@ -68,7 +69,8 @@ public sealed partial class CharacterViewerPlugin
         var slider = new GUIScrollBar(
             new RectTransform(new Vector2(0.36f, 0.55f), zoomRow.RectTransform, Anchor.CenterLeft)
             {
-                RelativeOffset = new Vector2(0.23f, 0.0f)
+                RelativeOffset = new Vector2(0.23f, 0.0f),
+                MinSize = new Point(GUI.IntScale(120), GUI.IntScale(14))
             },
             barSize: 0.12f,
             isHorizontal: true)
@@ -132,6 +134,7 @@ public sealed partial class CharacterViewerPlugin
                 ResetSpriteListScroll(listBox);
             }
             UpdateSpriteHorizontalScrollBar(list);
+            UpdateSpriteListVerticalScrollBar(list);
         };
         spriteHorizontalScrollBars[list] = horizontalScrollBar;
         spriteHorizontalScrollOffsets[list] = 0.0f;
@@ -194,14 +197,20 @@ public sealed partial class CharacterViewerPlugin
 
     private List<ViewerSpriteEntry> GetSelectedClothingSpriteEntries()
     {
+        return GetSelectedWearableSprites()
+            .Where(static tuple => tuple.sprite?.Sprite != null)
+            .Select(tuple => CreateSpriteEntry($"{tuple.sprite.WearableComponent.Item.Prefab.Name} {tuple.sprite.Limb}", tuple.sprite.Type.ToString(), tuple.sprite, tuple.limb, CurrentCharacter))
+            .ToList();
+    }
+
+    private List<(Limb limb, WearableSprite sprite)> GetSelectedWearableSprites()
+    {
         return CurrentCharacter?.AnimController?.Limbs
             .Where(static limb => limb != null)
             .SelectMany(static limb => limb.WearingItems.Select(sprite => (limb, sprite)))
             .Where(tuple => tuple.sprite?.WearableComponent?.Item?.Prefab == selectedClothingPrefab)
             .Distinct()
-            .Where(static tuple => tuple.sprite?.Sprite != null)
-            .Select(tuple => CreateSpriteEntry($"{tuple.sprite.WearableComponent.Item.Prefab.Name} {tuple.sprite.Limb}", tuple.sprite.Type.ToString(), tuple.sprite, tuple.limb, CurrentCharacter))
-            .ToList() ?? new List<ViewerSpriteEntry>();
+            .ToList() ?? new List<(Limb limb, WearableSprite sprite)>();
     }
 
     private ViewerSpriteEntry CreateSpriteEntry(string title, string subtitle, WearableSprite wearableSprite, Limb limb, Character character)
@@ -209,6 +218,7 @@ public sealed partial class CharacterViewerPlugin
         ViewerSpriteEntry entry = CreateSpriteEntry(title, subtitle, wearableSprite.Sprite, wearableSprite.Scale);
         entry.InheritSourceRect = wearableSprite.InheritSourceRect;
         entry.InheritOrigin = wearableSprite.InheritOrigin;
+        entry.SourceElement = wearableSprite.SourceElement;
         ResolveInheritedSpriteValues(entry, wearableSprite, limb, character);
         return entry;
     }
@@ -240,6 +250,7 @@ public sealed partial class CharacterViewerPlugin
             spriteHorizontalScrollOffsets[list] = 0.0f;
             UpdateSpriteHorizontalScrollBar(list);
             RequestSpriteListScrollReset(list);
+            UpdateSpriteListVerticalScrollBar(list);
             return;
         }
 
@@ -266,6 +277,7 @@ public sealed partial class CharacterViewerPlugin
         spriteCanvasWidths[list] = width;
         UpdateSpriteHorizontalScrollBar(list);
         RequestSpriteListScrollReset(list);
+        UpdateSpriteListVerticalScrollBar(list);
     }
 
     private void RequestSpriteListScrollReset(GUIListBox list)
@@ -280,6 +292,15 @@ public sealed partial class CharacterViewerPlugin
         list.BarScroll = 0.0f;
         list.ScrollBar.BarScroll = 0.0f;
         list.RecalculateChildren();
+    }
+
+    private static void UpdateSpriteListVerticalScrollBar(GUIListBox list)
+    {
+        if (list == null) { return; }
+        list.RecalculateChildren();
+        list.UpdateScrollBarSize();
+        list.ScrollBarVisible = list.BarSize < 1.0f;
+        list.ScrollBar.Enabled = list.ScrollBarVisible;
     }
 
     private float GetSpriteHorizontalScrollOffset(GUIListBox list)
