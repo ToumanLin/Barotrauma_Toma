@@ -758,7 +758,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             Pickable pickable = item.GetComponent<Pickable>();
             if (wearable == null)
             {
-                item.Remove();
+                SafeRemoveItem(item);
                 UpdateClothingInfo("Selected item has no wearable component.");
                 UpdateAllViewerSpriteInfo();
                 QueueWearableEditorRebuild();
@@ -766,7 +766,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             }
             if (pickable == null)
             {
-                item.Remove();
+                SafeRemoveItem(item);
                 UpdateClothingInfo("Selected item has no pickable component.");
                 UpdateAllViewerSpriteInfo();
                 QueueWearableEditorRebuild();
@@ -780,7 +780,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 
             if (!character.Inventory.TryPutItem(item, null, allowedSlots, createNetworkEvent: false))
             {
-                item.Remove();
+                SafeRemoveItem(item);
                 UpdateClothingInfo("Could not equip the selected item in any allowed slot.");
                 UpdateAllViewerSpriteInfo();
                 QueueWearableEditorRebuild();
@@ -795,7 +795,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         }
         catch (Exception ex)
         {
-            item?.Remove();
+            SafeRemoveItem(item);
             LuaCsLogger.LogError($"CharacterViewer failed to equip {prefab.Identifier}: {ex}");
             UpdateClothingInfo("Failed to equip selected clothing. See console for details.");
             UpdateAllViewerSpriteInfo();
@@ -805,21 +805,29 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 
     private void ClearViewerClothing()
     {
-        Character character = CurrentCharacter;
-        foreach (Item item in viewerEquippedItems.ToArray())
+        Character character = CurrentCharacter is { Removed: false } currentCharacter ? currentCharacter : null;
+        Item[] items = viewerEquippedItems.ToArray();
+        viewerEquippedItems.Clear();
+        foreach (Item item in items)
         {
             try
             {
+                if (item == null || item.Removed) { continue; }
                 item.GetComponent<Wearable>()?.Unequip(character);
                 item.ParentInventory?.RemoveItem(item);
-                item.Remove();
+                SafeRemoveItem(item);
             }
             catch (Exception ex)
             {
                 LuaCsLogger.LogError($"CharacterViewer failed to remove preview item: {ex}");
             }
         }
-        viewerEquippedItems.Clear();
+    }
+
+    private static void SafeRemoveItem(Item item)
+    {
+        if (item == null || item.Removed) { return; }
+        item.Remove();
     }
 
     private void UpdateClothingInfo(string state = null)
@@ -897,7 +905,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         {
             ClearViewerClothing();
             Character character = CurrentCharacter;
-            if (character != null)
+            if (character != null && !character.Removed)
             {
                 character.Remove();
             }

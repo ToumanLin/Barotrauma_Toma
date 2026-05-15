@@ -703,7 +703,7 @@ public sealed partial class CharacterViewerPlugin
 
         try
         {
-            XDocument document = spriteElement.Document ?? selectedClothingPrefab?.ConfigElement?.Document;
+            XDocument document = GetWritableWearableDocument(spriteElement, path);
             if (document == null)
             {
                 new GUIMessageBox("Wearable Editor", "Could not find the XML document for this wearable.");
@@ -726,6 +726,71 @@ public sealed partial class CharacterViewerPlugin
             LuaCsLogger.LogError($"CharacterViewer failed to save wearable XML: {ex}");
             new GUIMessageBox("Wearable Editor", $"Failed to save XML.\n\n{ex.Message}");
         }
+    }
+
+    private XDocument GetWritableWearableDocument(ContentXElement spriteElement, string path)
+    {
+        XDocument document = spriteElement.Document ?? selectedClothingPrefab?.ConfigElement?.Document;
+        if (document != null)
+        {
+            return document;
+        }
+
+        document = XMLExtensions.TryLoadXml(path);
+        if (document == null)
+        {
+            return null;
+        }
+
+        if (TryFindWritableSpriteElement(document, spriteElement, out XElement writableElement))
+        {
+            writableElement.ReplaceWith(new XElement(spriteElement.Element));
+            return document;
+        }
+
+        LuaCsLogger.LogError($"CharacterViewer could not find matching sprite element in {path}.");
+        return null;
+    }
+
+    private bool TryFindWritableSpriteElement(XDocument document, ContentXElement spriteElement, out XElement writableElement)
+    {
+        writableElement = null;
+        if (document?.Root == null || spriteElement?.Element == null) { return false; }
+
+        if (originalWearableSpriteElements.TryGetValue(spriteElement.Element, out XElement original))
+        {
+            string originalText = original.ToString(SaveOptions.DisableFormatting);
+            writableElement = document
+                .Descendants()
+                .FirstOrDefault(e => e.Name.LocalName.Equals("sprite", StringComparison.OrdinalIgnoreCase) &&
+                                     e.ToString(SaveOptions.DisableFormatting) == originalText);
+            if (writableElement != null) { return true; }
+        }
+
+        int spriteIndex = GetSelectedPrefabSpriteIndex(spriteElement.Element);
+        if (spriteIndex < 0) { return false; }
+
+        XElement prefabElement = document
+            .Descendants()
+            .FirstOrDefault(e =>
+                e.Elements().Any(child => child.Name.LocalName.Equals("Wearable", StringComparison.OrdinalIgnoreCase)) &&
+                (e.GetAttributeString("identifier", null) == selectedClothingPrefab.Identifier.Value ||
+                 e.GetAttributeString("name", null) == selectedClothingPrefab.Name.ToString()));
+        IEnumerable<XElement> spriteElements = (prefabElement ?? document.Root)
+            .Descendants()
+            .Where(e => e.Name.LocalName.Equals("sprite", StringComparison.OrdinalIgnoreCase));
+        writableElement = spriteElements.ElementAtOrDefault(spriteIndex);
+        return writableElement != null;
+    }
+
+    private int GetSelectedPrefabSpriteIndex(XElement element)
+    {
+        if (selectedClothingPrefab?.ConfigElement == null || element == null) { return -1; }
+        List<ContentXElement> sprites = selectedClothingPrefab.ConfigElement
+            .GetChildElements("Wearable")
+            .SelectMany(static wearable => wearable.GetChildElements("sprite"))
+            .ToList();
+        return sprites.FindIndex(sprite => sprite.Element == element);
     }
 
     private bool TryGetSelectedWearableXmlPath(ContentXElement spriteElement, out string path)
