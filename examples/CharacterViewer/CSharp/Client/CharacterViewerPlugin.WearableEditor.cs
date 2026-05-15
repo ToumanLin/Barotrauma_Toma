@@ -22,6 +22,13 @@ public sealed partial class CharacterViewerPlugin
         public XElement Element => Sprite?.SourceElement?.Element;
     }
 
+    private sealed class WearableSpriteClipboard
+    {
+        public XElement Element;
+        public string SourceXmlPath;
+        public ContentPackage SourcePackage;
+    }
+
     private readonly Dictionary<XElement, XElement> originalWearableSpriteElements = new Dictionary<XElement, XElement>();
 
     private bool wearableEditorEnabled;
@@ -30,6 +37,10 @@ public sealed partial class CharacterViewerPlugin
     private ItemPrefab wearableEditorPrefab;
     private XElement selectedWearableSpriteElement;
     private XElement pendingPreviewSelectedWearableSpriteElement;
+    private WearableSpriteClipboard wearableSpriteClipboard;
+    private GUIButton copyWearableSpriteButton;
+    private GUIButton pasteWearableSpriteButton;
+    private GUIButton deleteWearableSpriteButton;
 
     private void SetWearableEditorEnabled(bool enabled)
     {
@@ -55,6 +66,9 @@ public sealed partial class CharacterViewerPlugin
             RemoveWindow(wearableSpriteListWindow);
             wearableSpriteListWindow = null;
             wearableSpriteListBox = null;
+            copyWearableSpriteButton = null;
+            pasteWearableSpriteButton = null;
+            deleteWearableSpriteButton = null;
             UpdateAllViewerSpriteInfo();
         }
     }
@@ -156,10 +170,12 @@ public sealed partial class CharacterViewerPlugin
         if (wearableSpriteListBox == null) { return; }
 
         wearableSpriteListBox.ClearChildren();
+        CreateWearableSpriteListActions();
         List<WearableSpriteSelection> entries = GetWearableSpriteSelections();
         if (entries.Count == 0)
         {
             CreateEditorMessage(wearableSpriteListBox, selectedClothingPrefab == null ? "No clothing selected." : "Selected clothing has no sprite entries.");
+            RefreshWearableSpriteListActionState();
             RefreshListScrollBar(wearableSpriteListBox);
             return;
         }
@@ -188,7 +204,32 @@ public sealed partial class CharacterViewerPlugin
             button.ToolTip = element.Element.ToString(SaveOptions.DisableFormatting);
         }
 
+        RefreshWearableSpriteListActionState();
         RefreshListScrollBar(wearableSpriteListBox);
+    }
+
+    private void CreateWearableSpriteListActions()
+    {
+        var row = new GUILayoutGroup(new RectTransform(new Vector2(1.0f, 0.0f), wearableSpriteListBox.Content.RectTransform)
+        {
+            MinSize = new Point(0, GUI.IntScale(30))
+        }, isHorizontal: true)
+        {
+            Stretch = true,
+            RelativeSpacing = 0.02f
+        };
+
+        copyWearableSpriteButton = CreateEditorButton(row, "Copy", CopySelectedWearableSprite);
+        pasteWearableSpriteButton = CreateEditorButton(row, "Paste", PasteCopiedWearableSprite);
+        deleteWearableSpriteButton = CreateEditorButton(row, "Delete", ConfirmDeleteSelectedWearableSprite);
+    }
+
+    private void RefreshWearableSpriteListActionState()
+    {
+        bool hasSelection = GetSelectedWearableSpriteSelection()?.Sprite?.SourceElement != null;
+        SetEditorButtonEnabled(copyWearableSpriteButton, hasSelection);
+        SetEditorButtonEnabled(deleteWearableSpriteButton, hasSelection);
+        SetEditorButtonEnabled(pasteWearableSpriteButton, wearableSpriteClipboard?.Element != null);
     }
 
     private void SelectWearableSprite(XElement element)
@@ -198,6 +239,99 @@ public sealed partial class CharacterViewerPlugin
         QueueWearableEditorRebuild();
         QueueWearableSpriteListRebuild();
         UpdateAllViewerSpriteInfo();
+    }
+
+    private void CopySelectedWearableSprite()
+    {
+        WearableSpriteSelection selection = GetSelectedWearableSpriteSelection();
+        ContentXElement sourceElement = selection?.Sprite?.SourceElement;
+        if (sourceElement?.Element == null) { return; }
+
+        TryGetWearableXmlPath(sourceElement, out string sourceXmlPath, showWarning: false);
+        sourceXmlPath = GetWearableSpriteTextureBaseXmlPath(sourceXmlPath);
+        XElement clone = new XElement(sourceElement.Element);
+        NormalizeCopiedTexturePath(clone, sourceElement, sourceXmlPath);
+        wearableSpriteClipboard = new WearableSpriteClipboard
+        {
+            Element = clone,
+            SourceXmlPath = sourceXmlPath,
+            SourcePackage = sourceElement.ContentPackage ?? selectedClothingPrefab?.ContentPackage
+        };
+        QueueWearableSpriteListRebuild();
+        GUI.AddMessage("Wearable sprite copied.", GUIStyle.Green, font: GUIStyle.Font, lifeTime: 3);
+    }
+
+    private void PasteCopiedWearableSprite()
+    {
+        if (wearableSpriteClipboard?.Element == null) { return; }
+        if (!TryGetSelectedWearableParent(out ContentXElement wearableParent)) { return; }
+
+        XElement pastedElement = new XElement(wearableSpriteClipboard.Element);
+        NormalizePastedTexturePath(pastedElement);
+        wearableParent.Add(new ContentXElement(selectedClothingPrefab.ContentPackage, pastedElement));
+        selectedWearableSpriteElement = pastedElement;
+        originalWearableSpriteElements[pastedElement] = new XElement(pastedElement);
+        ReequipSelectedWearable();
+        QueueWearableEditorRebuild();
+        QueueWearableSpriteListRebuild();
+        UpdateAllViewerSpriteInfo();
+        GUI.AddMessage("Wearable sprite pasted.", GUIStyle.Green, font: GUIStyle.Font, lifeTime: 3);
+    }
+
+    private void ConfirmDeleteSelectedWearableSprite()
+    {
+        WearableSpriteSelection selection = GetSelectedWearableSpriteSelection();
+        XElement element = selection?.Element;
+        if (element == null) { return; }
+
+        string name = element.GetAttributeString("name", "");
+        string label = string.IsNullOrWhiteSpace(name) ? element.GetAttributeString("limb", "selected sprite") : name;
+        var messageBox = new GUIMessageBox("Delete Wearable Sprite", $"Delete sprite entry \"{label}\"?\n\nThis changes the editor state only. Use Save to write it to XML.", new LocalizedString[] { "Cancel", "Delete" }, type: GUIMessageBox.Type.Warning);
+        messageBox.Buttons[0].OnClicked = (_, _) =>
+        {
+            messageBox.Close();
+            return true;
+        };
+        messageBox.Buttons[1].OnClicked = (_, _) =>
+        {
+            messageBox.Close();
+            DeleteSelectedWearableSprite(element);
+            return true;
+        };
+    }
+
+    private void DeleteSelectedWearableSprite(XElement element)
+    {
+        List<WearableSpriteSelection> entries = GetWearableSpriteSelections();
+        int index = entries.FindIndex(e => e.Element == element);
+        XElement nextSelection = entries
+            .Where(e => e.Element != element)
+            .Select(e => e.Element)
+            .ElementAtOrDefault(Math.Max(0, Math.Min(index, entries.Count - 2)));
+
+        originalWearableSpriteElements.Remove(element);
+        element.Remove();
+        selectedWearableSpriteElement = nextSelection;
+        ReequipSelectedWearable();
+        QueueWearableEditorRebuild();
+        QueueWearableSpriteListRebuild();
+        UpdateAllViewerSpriteInfo();
+        GUI.AddMessage("Wearable sprite deleted. Use Save to write the XML.", GUIStyle.Orange, font: GUIStyle.Font, lifeTime: 5);
+    }
+
+    private bool TryGetSelectedWearableParent(out ContentXElement wearableParent)
+    {
+        wearableParent = selectedClothingPrefab?.ConfigElement?.GetChildElement("Wearable");
+        if (wearableParent != null) { return true; }
+
+        new GUIMessageBox("Wearable Editor", "Selected clothing has no Wearable element to paste into.");
+        return false;
+    }
+
+    private string GetWearableSpriteTextureBaseXmlPath(string fallbackPath)
+    {
+        ItemPrefab basePrefab = selectedClothingPrefab?.ParentPrefab ?? selectedClothingPrefab;
+        return basePrefab?.FilePath?.FullPath ?? fallbackPath;
     }
 
     private bool IsSelectedWearableSpriteElement(ContentXElement element)
@@ -629,9 +763,9 @@ public sealed partial class CharacterViewerPlugin
         input.OnValueChanged += numberInput => onChanged(numberInput.FloatValue);
     }
 
-    private static void CreateEditorButton(GUILayoutGroup row, string text, Action onClicked)
+    private static GUIButton CreateEditorButton(GUILayoutGroup row, string text, Action onClicked)
     {
-        new GUIButton(new RectTransform(Vector2.One, row.RectTransform), text, style: "GUIButtonSmall")
+        return new GUIButton(new RectTransform(Vector2.One, row.RectTransform), text, style: "GUIButtonSmall")
         {
             OnClicked = (_, _) =>
             {
@@ -639,6 +773,13 @@ public sealed partial class CharacterViewerPlugin
                 return true;
             }
         };
+    }
+
+    private static void SetEditorButtonEnabled(GUIButton button, bool enabled)
+    {
+        if (button == null) { return; }
+        button.Enabled = enabled;
+        button.TextColor = enabled ? GUIStyle.TextColorNormal : GUIStyle.TextColorDim;
     }
 
     private static void CreateNestedPlaceholder(GUILayoutGroup parent, ContentXElement spriteElement)
@@ -793,7 +934,95 @@ public sealed partial class CharacterViewerPlugin
         return sprites.FindIndex(sprite => sprite.Element == element);
     }
 
+    private void NormalizeCopiedTexturePath(XElement clone, ContentXElement sourceElement, string sourceXmlPath)
+    {
+        string texture = clone.GetAttributeString("texture", null);
+        if (string.IsNullOrWhiteSpace(texture) || !sourceElement.Element.DoesAttributeReferenceFileNameAlone("texture")) { return; }
+
+        if (TryResolveTexturePath(texture, sourceElement.ContentPackage ?? selectedClothingPrefab?.ContentPackage, sourceXmlPath, out string resolvedPath))
+        {
+            clone.SetAttributeValue("texture", resolvedPath);
+        }
+    }
+
+    private void NormalizePastedTexturePath(XElement pastedElement)
+    {
+        string texture = pastedElement.GetAttributeString("texture", null);
+        if (string.IsNullOrWhiteSpace(texture)) { return; }
+
+        if (!TryResolveTexturePath(texture, wearableSpriteClipboard.SourcePackage, wearableSpriteClipboard.SourceXmlPath, out string resolvedPath))
+        {
+            return;
+        }
+
+        if (TryConvertToModDirPath(resolvedPath, selectedClothingPrefab?.ContentPackage, out string portablePath))
+        {
+            pastedElement.SetAttributeValue("texture", portablePath);
+            return;
+        }
+
+        pastedElement.SetAttributeValue("texture", resolvedPath);
+        new GUIMessageBox("Wearable Editor", $"Pasted sprite texture could not be matched to a content package, so an absolute path was used.\n\n{resolvedPath}");
+    }
+
+    private static bool TryResolveTexturePath(string texture, ContentPackage sourcePackage, string sourceXmlPath, out string resolvedPath)
+    {
+        resolvedPath = null;
+        if (string.IsNullOrWhiteSpace(texture)) { return false; }
+
+        try
+        {
+            if (!texture.Contains("/") && !texture.Contains("%ModDir", StringComparison.OrdinalIgnoreCase) && !Path.IsPathRooted(texture))
+            {
+                string baseDirectory = !string.IsNullOrWhiteSpace(sourceXmlPath) ? Path.GetDirectoryName(sourceXmlPath) : sourcePackage?.Dir;
+                if (string.IsNullOrWhiteSpace(baseDirectory)) { return false; }
+                resolvedPath = Path.GetFullPath(Path.Combine(baseDirectory, texture)).CleanUpPathCrossPlatform(correctFilenameCase: false);
+                return true;
+            }
+
+            ContentPath contentPath = ContentPath.FromRaw(sourcePackage, texture);
+            if (string.IsNullOrWhiteSpace(contentPath.FullPath)) { return false; }
+            resolvedPath = contentPath.FullPath.CleanUpPathCrossPlatform(correctFilenameCase: false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LuaCsLogger.LogError($"CharacterViewer failed to resolve copied sprite texture path \"{texture}\": {ex}");
+            return false;
+        }
+    }
+
+    private static bool TryConvertToModDirPath(string fullPath, ContentPackage targetPackage, out string modDirPath)
+    {
+        modDirPath = null;
+        if (string.IsNullOrWhiteSpace(fullPath)) { return false; }
+
+        string normalizedFullPath = Path.GetFullPath(fullPath).CleanUpPathCrossPlatform(correctFilenameCase: false);
+        ContentPackage package = ContentPackageManager.AllPackages
+            .Where(p => p != null && !string.IsNullOrWhiteSpace(p.Dir))
+            .OrderByDescending(p => p.Dir.Length)
+            .FirstOrDefault(p => IsPathInsideDirectory(normalizedFullPath, p.Dir));
+        if (package == null) { return false; }
+
+        string packageDir = Path.GetFullPath(package.Dir).CleanUpPathCrossPlatform(correctFilenameCase: false).TrimEnd('/', '\\');
+        string relative = Path.GetRelativePath(packageDir, normalizedFullPath).CleanUpPathCrossPlatform(correctFilenameCase: false).Replace("\\", "/");
+        string token = package == targetPackage ? ContentPath.ModDirStr : string.Format(ContentPath.OtherModDirFmt, package.Name);
+        modDirPath = $"{token}/{relative}";
+        return true;
+    }
+
+    private static bool IsPathInsideDirectory(string fullPath, string directory)
+    {
+        string normalizedDirectory = Path.GetFullPath(directory).CleanUpPathCrossPlatform(correctFilenameCase: false).TrimEnd('/', '\\') + "/";
+        return fullPath.StartsWith(normalizedDirectory, StringComparison.OrdinalIgnoreCase);
+    }
+
     private bool TryGetSelectedWearableXmlPath(ContentXElement spriteElement, out string path)
+    {
+        return TryGetWearableXmlPath(spriteElement, out path, showWarning: true);
+    }
+
+    private bool TryGetWearableXmlPath(ContentXElement spriteElement, out string path, bool showWarning)
     {
         path = selectedClothingPrefab?.FilePath?.FullPath;
         if (!string.IsNullOrWhiteSpace(spriteElement?.BaseUri))
@@ -804,7 +1033,10 @@ public sealed partial class CharacterViewerPlugin
         }
         if (string.IsNullOrWhiteSpace(path))
         {
-            new GUIMessageBox("Wearable Editor", "No wearable XML file is selected.");
+            if (showWarning)
+            {
+                new GUIMessageBox("Wearable Editor", "No wearable XML file is selected.");
+            }
             return false;
         }
         return true;

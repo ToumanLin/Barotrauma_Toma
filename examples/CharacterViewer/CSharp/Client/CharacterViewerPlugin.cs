@@ -276,7 +276,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 
         if (!layout.GetAllChildren().Any(c => c.UserData as string == "CharacterViewer.PanelToggle"))
         {
-            var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), "CHARACTER VIEWER [6]")
+            var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), "WEARABLE VIEWER [6]")
             {
                 UserData = "CharacterViewer.PanelToggle",
                 Selected = panelsEnabled,
