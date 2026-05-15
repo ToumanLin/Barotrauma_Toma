@@ -765,8 +765,13 @@ public sealed partial class CharacterViewerPlugin
 
     private static Point GetXmlPreviewSize(ContentXElement element)
     {
-        int lines = element?.Element?.ToString(SaveOptions.None).Split('\n').Length ?? 1;
-        return new Point(0, MathHelper.Clamp(GUI.IntScale(18 + lines * 16), GUI.IntScale(76), GUI.IntScale(260)));
+        string text = element?.Element?.ToString(SaveOptions.None) ?? "";
+        int lines = 1; // Account for the "XML code:" header line
+        foreach (string line in text.Split('\n'))
+        {
+            lines += 1 + (line.Length / 50);
+        }
+        return new Point(0, Math.Max(GUI.IntScale(18 + lines * 16), GUI.IntScale(76)));
     }
 
     private static Rectangle GetEffectiveSourceRect(WearableSprite wearableSprite)
