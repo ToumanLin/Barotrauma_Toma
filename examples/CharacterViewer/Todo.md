@@ -44,3 +44,14 @@ Feature Request: Further develop the editor for sprite editing:
 2. Delete sprite entry
     2.1. Add [delete] button to the sprite entry parameter GUI, the [delete] button should be darkened and unavailable if no sprite entry is selected to edit.
     2.2. Should pop up a confirmation dialog before deleting.
+
+
+Make a new Cs mod in ./examples/InGameCharacterCustomizer
+You can read ./docs to understand how Csharp mod works. It use harmony so that you should not use 'dotnet build' 
+
+In Game Character Customizer:
+Make a button "Customize" in the bottom right corner of character protrait in the tab menu (C:\Users\Touma\Documents\GitHub\LuaCsForBarotrauma\Barotrauma\BarotraumaClient\ClientSource\GUI\TabMenu.cs)
+1. When hover the button, show tooltip: "Customize character"
+2. When click the button, open a new window the same as CharacterAppearanceCustomizationMenu (you can find it in C:\Users\Touma\Documents\GitHub\LuaCsForBarotrauma\Barotrauma\BarotraumaClient\ClientSource\Screens\NetLobbyScreen.cs)
+3. should place [save] and [revert] buttons at the bottom
+4. make sure the Customize works both clinet and server

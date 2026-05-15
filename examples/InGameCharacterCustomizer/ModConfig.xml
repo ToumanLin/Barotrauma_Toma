@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModConfig>
+  <Assembly Folder="%ModDir%/CSharp/Client"
+            IsScript="true"
+            Target="Client"
+            FriendlyName="InGameCharacterCustomizer.Client" />
+  <Assembly Folder="%ModDir%/CSharp/Server"
+            IsScript="true"
+            Target="Server"
+            FriendlyName="InGameCharacterCustomizer.Server" />
+</ModConfig>
