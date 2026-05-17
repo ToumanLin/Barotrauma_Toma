@@ -22,7 +22,11 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     private CharacterInfo.AppearanceCustomizationMenu customizationMenu;
     private GUIFrame customizationRoot;
     private AppearancePayload originalAppearance;
+    private AppearancePayload savedAppearance;
     private Character customizedCharacter;
+    private int savedCampaignRoundId = -1;
+    private ushort lastAppliedSavedAppearanceCharacterId;
+    private bool hasSavedAppearance;
 
     public void PreInitPatching()
     {
@@ -77,7 +81,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
     private static void GameScreenAddToGUIUpdateListPostfix()
     {
-        instance?.AddCustomizerToGuiUpdateList();
+        instance?.UpdateInGameCustomization();
     }
 
     private void TryAddCustomizeButton(CharacterInfo info, GUIComponent infoFrame)
@@ -196,6 +200,12 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         customizationMenu = new CharacterInfo.AppearanceCustomizationMenu(character.Info, menuHost);
     }
 
+    private void UpdateInGameCustomization()
+    {
+        TryApplySavedAppearanceToControlledCharacter();
+        AddCustomizerToGuiUpdateList();
+    }
+
     private void AddCustomizerToGuiUpdateList()
     {
         customizationRoot?.AddToGUIUpdateList(ignoreChildren: false, order: 10);
@@ -222,16 +232,52 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
         AppearancePayload payload = AppearancePayload.FromCharacter(customizedCharacter);
         payload.ApplyTo(customizedCharacter);
+        savedAppearance = payload;
+        savedCampaignRoundId = GetCampaignRoundId();
+        lastAppliedSavedAppearanceCharacterId = payload.CharacterId;
+        hasSavedAppearance = true;
         SaveLocalPreferences(payload);
 
-        if (GameMain.Client != null)
-        {
-            IWriteMessage message = LuaCsSetup.Instance.Networking.Start(ApplyMessage);
-            payload.Write(message);
-            LuaCsSetup.Instance.Networking.SendToServer(message, DeliveryMethod.Reliable);
-        }
+        SendAppearanceToServer(payload);
 
         CloseCustomizationWindow(revert: false);
+    }
+
+    private void TryApplySavedAppearanceToControlledCharacter()
+    {
+        Character controlled = Character.Controlled;
+        int campaignRoundId = GetCampaignRoundId();
+        if (!hasSavedAppearance ||
+            campaignRoundId < 0 ||
+            campaignRoundId == savedCampaignRoundId ||
+            controlled?.Info?.Head == null ||
+            controlled.IsDead ||
+            controlled.ID == lastAppliedSavedAppearanceCharacterId)
+        {
+            return;
+        }
+
+        AppearancePayload payload = savedAppearance.WithCharacterId(controlled.ID);
+        payload.ApplyTo(controlled);
+        savedAppearance = payload;
+        savedCampaignRoundId = campaignRoundId;
+        lastAppliedSavedAppearanceCharacterId = controlled.ID;
+        SaveLocalPreferences(payload);
+        SendAppearanceToServer(payload);
+    }
+
+    private static void SendAppearanceToServer(AppearancePayload payload)
+    {
+        if (GameMain.Client == null) { return; }
+
+        IWriteMessage message = LuaCsSetup.Instance.Networking.Start(ApplyMessage);
+        payload.Write(message);
+        LuaCsSetup.Instance.Networking.SendToServer(message, DeliveryMethod.Reliable);
+    }
+
+    private static int GetCampaignRoundId()
+    {
+        return GameMain.GameSession?.Campaign is MultiPlayerCampaign campaign ? campaign.RoundID : -1;
     }
 
     private static void SaveLocalPreferences(AppearancePayload payload)
@@ -274,6 +320,18 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         AppearancePayload payload = AppearancePayload.Read(message);
         Character character = Character.CharacterList.FirstOrDefault(c => c.ID == payload.CharacterId);
         payload.ApplyTo(character);
+        instance?.RememberServerAppearance(character, payload);
+    }
+
+    private void RememberServerAppearance(Character character, AppearancePayload payload)
+    {
+        if (character == null || character != Character.Controlled) { return; }
+
+        savedAppearance = payload;
+        savedCampaignRoundId = GetCampaignRoundId();
+        lastAppliedSavedAppearanceCharacterId = payload.CharacterId;
+        hasSavedAppearance = true;
+        SaveLocalPreferences(payload);
     }
 
     private static void AddPopupListToGuiUpdateList(GUIListBox listBox, int order)

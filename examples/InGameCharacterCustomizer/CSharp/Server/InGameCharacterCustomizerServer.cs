@@ -40,9 +40,26 @@ public sealed class InGameCharacterCustomizerServer : IAssemblyPlugin
         {
             validated.ApplyTo(sender.CharacterInfo);
         }
+        PersistCampaignAppearance(sender, validated);
 
         IWriteMessage response = LuaCsSetup.Instance.Networking.Start(SyncMessage);
         validated.Write(response);
         LuaCsSetup.Instance.Networking.SendToClient(response, deliveryMethod: DeliveryMethod.Reliable);
+    }
+
+    private static void PersistCampaignAppearance(Client sender, AppearancePayload validated)
+    {
+        if (GameMain.GameSession?.Campaign is not MultiPlayerCampaign campaign) { return; }
+
+        CharacterCampaignData characterData = campaign.GetClientCharacterData(sender);
+        if (characterData?.CharacterInfo?.Head == null) { return; }
+
+        if (characterData.CharacterInfo != sender.Character.Info &&
+            characterData.CharacterInfo != sender.CharacterInfo)
+        {
+            validated.ApplyTo(characterData.CharacterInfo);
+        }
+
+        campaign.IncrementLastUpdateIdForFlag(MultiPlayerCampaign.NetFlags.CharacterInfo);
     }
 }
