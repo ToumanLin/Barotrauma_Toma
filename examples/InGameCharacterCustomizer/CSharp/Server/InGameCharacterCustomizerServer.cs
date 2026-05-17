@@ -36,6 +36,10 @@ public sealed class InGameCharacterCustomizerServer : IAssemblyPlugin
         if (requested.CharacterId != sender.Character.ID) { return; }
 
         AppearancePayload validated = requested.ApplyValidatedTo(sender.Character);
+        if (sender.CharacterInfo != sender.Character.Info)
+        {
+            validated.ApplyTo(sender.CharacterInfo);
+        }
 
         IWriteMessage response = LuaCsSetup.Instance.Networking.Start(SyncMessage);
         validated.Write(response);

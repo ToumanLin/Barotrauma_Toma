@@ -68,6 +68,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         Patch("Barotrauma.CharacterEditor.CharacterEditorScreen", "Update", new[] { typeof(double) }, postfix: nameof(UpdatePostfix));
         Patch("Barotrauma.CharacterEditor.CharacterEditorScreen", "CreateFileEditPanel", postfix: nameof(CreateFileEditPanelPostfix));
         Patch("Barotrauma.CharacterEditor.CharacterEditorScreen", "CreateModesPanel", new[] { typeof(Vector2) }, postfix: nameof(CreateModesPanelPostfix));
+        Patch("Barotrauma.CharacterEditor.CharacterEditorScreen", "CreateMinorModesPanel", new[] { typeof(Vector2) }, postfix: nameof(CreateMinorModesPanelPostfix));
         Patch("Barotrauma.CharacterEditor.CharacterEditorScreen", "SpawnCharacter", new[] { typeof(Identifier), typeof(RagdollParams) }, prefix: nameof(SpawnCharacterPrefix), postfix: nameof(SpawnCharacterPostfix));
         Patch("Barotrauma.CharacterEditor.CharacterEditorScreen", "DeselectEditorSpecific", postfix: nameof(DeselectEditorPostfix));
 
@@ -119,9 +120,9 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         instance?.ClearViewerClothing();
     }
 
-    private static void UpdatePostfix()
+    private static void UpdatePostfix(double deltaTime)
     {
-        instance?.OnCharacterEditorUpdated();
+        instance?.OnCharacterEditorUpdated((float)deltaTime);
     }
 
     private static void CreateFileEditPanelPostfix(CharacterEditorScreen __instance)
@@ -132,6 +133,11 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     private static void CreateModesPanelPostfix(CharacterEditorScreen __instance)
     {
         instance?.AddPanelToggleToModesPanel(__instance);
+    }
+
+    private static void CreateMinorModesPanelPostfix(CharacterEditorScreen __instance)
+    {
+        instance?.AddInGameBehaviorToggleToMinorModesPanel(__instance);
     }
 
     private static void SpawnCharacterPostfix()
@@ -203,13 +209,14 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         wearableSpriteListWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
     }
 
-    private void OnCharacterEditorUpdated()
+    private void OnCharacterEditorUpdated(float deltaTime)
     {
         if (Screen.Selected is not CharacterEditorScreen) { return; }
 
         EnsureEditorPanelControls();
         UpdateShortcuts();
         UpdateWearableEditor();
+        UpdateInGameBehavior(deltaTime);
 
         if ((panelsEnabled || wearableEditorEnabled) && !IsBlockingGameMenuOpen())
         {
@@ -238,6 +245,10 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         {
             SetWearableEditorEnabled(!wearableEditorEnabled);
         }
+        else if (PlayerInput.KeyHit(Keys.H))
+        {
+            SetInGameBehaviorEnabled(!inGameBehaviorEnabled);
+        }
     }
 
     private void EnsureEditorPanelControls()
@@ -247,6 +258,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 
         AddModManagerButtonToFilePanel(editor);
         AddPanelToggleToModesPanel(editor);
+        AddInGameBehaviorToggleToMinorModesPanel(editor);
     }
 
     private void AddModManagerButtonToFilePanel(CharacterEditorScreen editor)

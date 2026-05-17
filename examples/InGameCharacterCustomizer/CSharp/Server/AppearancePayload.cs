@@ -116,8 +116,20 @@ internal readonly struct AppearancePayload
         info.Head.HairColor = ValidateColor(HairColor, info.HairColors.Select(c => c.Color), info.Head.HairColor);
         info.Head.FacialHairColor = ValidateColor(FacialHairColor, info.FacialHairColors.Select(c => c.Color), info.Head.FacialHairColor);
         info.RefreshHead();
+        character.LoadHeadAttachments();
 
         return FromCharacter(character);
+    }
+
+    public void ApplyTo(CharacterInfo info)
+    {
+        if (info?.Head == null) { return; }
+
+        info.RecreateHead(Tags, HairIndex, BeardIndex, MoustacheIndex, FaceAttachmentIndex);
+        info.Head.SkinColor = SkinColor;
+        info.Head.HairColor = HairColor;
+        info.Head.FacialHairColor = FacialHairColor;
+        info.RefreshHead();
     }
 
     private static int ClampAttachmentIndex(CharacterInfo info, WearableType wearableType, int index)

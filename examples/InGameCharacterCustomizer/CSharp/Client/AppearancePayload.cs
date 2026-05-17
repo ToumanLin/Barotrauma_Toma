@@ -95,6 +95,16 @@ internal readonly struct AppearancePayload
         message.WriteColorR8G8B8(FacialHairColor);
     }
 
+    public void ApplyTo(Character character)
+    {
+        ApplyTo(character?.Info);
+        character?.ReloadHead(
+            hairIndex: HairIndex,
+            beardIndex: BeardIndex,
+            moustacheIndex: MoustacheIndex,
+            faceAttachmentIndex: FaceAttachmentIndex);
+    }
+
     public void ApplyTo(CharacterInfo info)
     {
         if (info?.Head == null) { return; }

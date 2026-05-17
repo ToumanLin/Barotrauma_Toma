@@ -62,6 +62,21 @@ MyMod/
 </ModConfig>
 ```
 
+### Hosted Servers Are Still Client Target
+
+If LuaCsForBarotrauma is installed only in a client game, and that client hosts a multiplayer game, LuaCs is still running the client target inside the client executable. This is a listen/hosted server from the player's point of view, but it does not make `CSharp/Server` assemblies load in that client-side LuaCs environment.
+
+In that setup:
+
+- `CSharp/Client` code can run and can access client-side state, UI, previews, and local preferences.
+- `CSharp/Server` code is not loaded unless LuaCs is installed and running on the actual server target.
+- `GameMain.Client.IsServerOwner` can be true, but `GameMain.NetworkMember.IsServer` is still false in the client target.
+- Changing local client state does not automatically change authoritative server or campaign-save state.
+
+This matters for mods that need durable multiplayer changes. For example, an in-game character customizer can update the visible character and the local multiplayer preferences from `CSharp/Client`, but an existing multiplayer campaign character's saved appearance is owned by server-side campaign data. To persist that kind of change, the server target must receive the request and update the authoritative data, such as `MultiPlayerCampaign.GetClientCharacterData(client).CharacterInfo`, then mark the relevant campaign net flag dirty.
+
+Do not treat "I am hosting" as equivalent to "my client-side C# assembly is a server assembly." If a feature must survive save/load, round transition, or campaign reload in multiplayer, design a server-side path and require LuaCs on the server side too.
+
 For larger mods, you can ship precompiled assemblies. Legacy discovery looks for platform-specific folders such as:
 
 ```text

@@ -201,14 +201,19 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         customizationRoot?.AddToGUIUpdateList(ignoreChildren: false, order: 10);
 
         GUIListBox headSelectionList = customizationMenu?.HeadSelectionList;
-        if (headSelectionList is not { Visible: true }) { return; }
-
-        RectTransform parent = headSelectionList.RectTransform.Parent;
-        if (parent?.Children.Contains(headSelectionList.RectTransform) == true)
+        if (headSelectionList is { Visible: true })
         {
-            headSelectionList.SetAsLastChild();
+            AddPopupListToGuiUpdateList(headSelectionList, order: 20);
         }
-        headSelectionList.AddToGUIUpdateList(ignoreChildren: false, order: 20);
+
+        if (customizationRoot == null) { return; }
+        foreach (GUIDropDown dropdown in customizationRoot.GetAllChildren<GUIDropDown>())
+        {
+            if (dropdown.Dropped)
+            {
+                AddPopupListToGuiUpdateList(dropdown.ListBox, order: 30);
+            }
+        }
     }
 
     private void SaveAppearance()
@@ -216,6 +221,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         if (customizedCharacter?.Info?.Head == null) { return; }
 
         AppearancePayload payload = AppearancePayload.FromCharacter(customizedCharacter);
+        payload.ApplyTo(customizedCharacter);
         SaveLocalPreferences(payload);
 
         if (GameMain.Client != null)
@@ -249,7 +255,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     {
         if (revert)
         {
-            originalAppearance.ApplyTo(customizedCharacter?.Info);
+            originalAppearance.ApplyTo(customizedCharacter);
         }
 
         customizationMenu?.Dispose();
@@ -267,7 +273,17 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     {
         AppearancePayload payload = AppearancePayload.Read(message);
         Character character = Character.CharacterList.FirstOrDefault(c => c.ID == payload.CharacterId);
-        payload.ApplyTo(character?.Info);
+        payload.ApplyTo(character);
+    }
+
+    private static void AddPopupListToGuiUpdateList(GUIListBox listBox, int order)
+    {
+        RectTransform parent = listBox.RectTransform.Parent;
+        if (parent?.Children.Contains(listBox.RectTransform) == true)
+        {
+            listBox.SetAsLastChild();
+        }
+        listBox.AddToGUIUpdateList(ignoreChildren: false, order: order);
     }
 
     private sealed class UpdatingFrame : GUIFrame
