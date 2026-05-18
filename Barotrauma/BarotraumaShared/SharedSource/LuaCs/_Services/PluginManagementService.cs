@@ -92,7 +92,7 @@ public class PluginManagementService : IAssemblyManagementService
 
     private static readonly int
         GC_COLLECT_WAIT_TIME = 1000,
-        GC_BACKGND_MAXITERATIONS = 1,
+        GC_BACKGND_MAXITERATIONS = 2,
         GC_BACKGND_INTERVAL_MILLIS = 500,
         GC_BACKGND_GENERATION_WAIT_MILLIS = 100;
     
