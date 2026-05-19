@@ -73,7 +73,18 @@ In that setup:
 - `GameMain.Client.IsServerOwner` can be true, but `GameMain.NetworkMember.IsServer` is still false in the client target.
 - Changing local client state does not automatically change authoritative server or campaign-save state.
 
-This matters for mods that need durable multiplayer changes. For example, an in-game character customizer can update the visible character and the local multiplayer preferences from `CSharp/Client`, but an existing multiplayer campaign character's saved appearance is owned by server-side campaign data. To persist that kind of change, the server target must receive the request and update the authoritative data, such as `MultiPlayerCampaign.GetClientCharacterData(client).CharacterInfo`, then mark the relevant campaign net flag dirty.
+This matters for mods that need durable multiplayer changes. For example, an in-game character customizer can update the visible character and the local multiplayer preferences from `CSharp/Client`, but an existing multiplayer campaign character's saved appearance is owned by server-side campaign data. To persist that kind of change, the server target must receive the request, validate it, update every authoritative `CharacterInfo` reference for that client, and mark the campaign character-info flag dirty:
+
+```csharp
+if (GameMain.GameSession?.Campaign is MultiPlayerCampaign campaign)
+{
+    CharacterCampaignData data = campaign.GetClientCharacterData(client);
+    ApplyAppearance(data?.CharacterInfo);
+    campaign.IncrementLastUpdateIdForFlag(MultiPlayerCampaign.NetFlags.CharacterInfo);
+}
+```
+
+For appearance changes specifically, updating only `client.Character` affects the live round, and updating only `client.CharacterInfo` may still miss the `CharacterCampaignData.CharacterInfo` instance that gets serialized and used on the next round. If the mod also needs to behave acceptably when a listen-host does not have a running `CSharp/Server` LuaCs target, keep a client-side fallback limited to local/session behavior, such as remembering the validated appearance and reapplying it once after the campaign `RoundID` changes. Treat that as a compatibility fallback, not as a replacement for server-side persistence.
 
 Do not treat "I am hosting" as equivalent to "my client-side C# assembly is a server assembly." If a feature must survive save/load, round transition, or campaign reload in multiplayer, design a server-side path and require LuaCs on the server side too.
 
