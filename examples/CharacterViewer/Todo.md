@@ -37,21 +37,11 @@ Feature Request: Further develop the editor for sprite editing:
     2.3. (Do not implement it yet, but leave a placeholder for it) The sprite elements inside wearable can have 2 kinds of nested child nodes, they are "LightComponent" and "override", the editor should find a way such that it allow user to navigate and edit the nested child nodes, you can read details in C:\Users\Touma\Documents\GitHub\LuaCsForBarotrauma\docs\wearable_sprite_properties.md
     2.4. append the XML code box to the end of all entries, make sure the box visualize xml with indentation and line breaks, and dynamic allocate box height based on the size of the xml, and put the [save] and [revert] buttons in the next row.
 
-Feature Request: Further develop the editor for sprite editing:
-1. Copy & paste sprite entry between different clothing items
-    1.1. Add [copy] and [paste] button to the sprite entry parameter GUI, the [copy] button should be darkened and unavailable if no sprite entry is selected to edit, the [paste] button should be darkened and unavailable if no sprite entry is copied.
-    1.2. About texture: the game sometimes use relative path (e.g. texture="captain_2_1.png" instead of texture="%ModDir%/Content/Items/Jobgear/Captain/captain_2_1.png" for the captain_2.xml), the copy and paste feature should handle this by automatically prepend the relative path with the absolute path of the texture
-2. Delete sprite entry
-    2.1. Add [delete] button to the sprite entry parameter GUI, the [delete] button should be darkened and unavailable if no sprite entry is selected to edit.
-    2.2. Should pop up a confirmation dialog before deleting.
+Goal: Add support for Huskappendage editing
+The huskappendage is a character configuration feature originally created by the Barotrauma developers to handle the Husk Infection (which sprouts a tentacle from the mouth) and other genetic mutations (like Mudraptor beaks or Spineling spikes).
+huskappendage allows the game to load a completely new structural XML file. This XML can contain new <limb> definitions, new <joint> connections, unique physics properties, and separate light sources.
+Since A standard <Wearable> item can only paste a flat sprite on top of the default human skeleton. The use of <HuskAppendage> makes more dynamic sprite possible.
 
+There is a small demo for you to understand how mod authors use <HuskAppendage>, you can search Wf_New_XDS01_Engine as the keyword : C:\Users\Touma\Documents\GitHub\LuaCsForBarotrauma\examples\HuskappendageExample
 
-Make a new Cs mod in ./examples/InGameCharacterCustomizer
-You can read ./docs to understand how Csharp mod works. It use harmony so that you should not use 'dotnet build' 
-
-In Game Character Customizer:
-Make a button "Customize" in the bottom right corner of character protrait in the tab menu (C:\Users\Touma\Documents\GitHub\LuaCsForBarotrauma\Barotrauma\BarotraumaClient\ClientSource\GUI\TabMenu.cs)
-1. When hover the button, show tooltip: "Customize character"
-2. When click the button, open a new window the same as CharacterAppearanceCustomizationMenu (you can find it in C:\Users\Touma\Documents\GitHub\LuaCsForBarotrauma\Barotrauma\BarotraumaClient\ClientSource\Screens\NetLobbyScreen.cs)
-3. should place [save] and [revert] buttons at the bottom
-4. make sure the Customize works both clinet and server
+1. 
