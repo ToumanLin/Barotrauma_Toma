@@ -833,12 +833,12 @@ public sealed partial class CharacterViewerPlugin
         SetWearableSpriteProperty(wearableSprite, "Rotation", MathHelper.ToRadians(wearableSprite.SourceElement.GetAttributeFloat("rotation", 0.0f)));
     }
 
-    private void SaveWearableXml(ContentXElement spriteElement)
+    private void SaveWearableXml(ContentXElement spriteElement, bool allowNonLocalPath = false)
     {
         if (!TryGetSelectedWearableXmlPath(spriteElement, out string path)) { return; }
-        if (!IsPathInLocalMods(path))
+        if (!allowNonLocalPath && !IsPathInLocalMods(path))
         {
-            new GUIMessageBox("Wearable Editor", $"Only XML files in LocalMods can be saved.\n\n{path}");
+            ShowNonLocalSaveWarning(spriteElement, path);
             return;
         }
 
@@ -869,10 +869,36 @@ public sealed partial class CharacterViewerPlugin
         }
     }
 
+    private void ShowNonLocalSaveWarning(ContentXElement spriteElement, string path)
+    {
+        var messageBox = new GUIMessageBox(
+            "Wearable Editor",
+            $"Only XML files in LocalMods can be saved by default.\n\n{path}\n\nSaving anyway may change a workshop mod file or Vanilla item. Steam can overwrite it.",
+            new LocalizedString[] { "Cancel", "Just save it" },
+            type: GUIMessageBox.Type.Warning);
+        messageBox.Buttons[0].OnClicked = (_, _) =>
+        {
+            messageBox.Close();
+            return true;
+        };
+        messageBox.Buttons[1].OnClicked = (_, _) =>
+        {
+            messageBox.Close();
+            SaveWearableXml(spriteElement, allowNonLocalPath: true);
+            return true;
+        };
+    }
+
     private XDocument GetWritableWearableDocument(ContentXElement spriteElement, string path)
     {
-        XDocument document = spriteElement.Document ?? selectedClothingPrefab?.ConfigElement?.Document;
-        if (document != null)
+        XDocument document = spriteElement.Document;
+        if (IsDocumentForPath(document, path) || IsSelectedPrefabDocumentForPath(document, path))
+        {
+            return document;
+        }
+
+        document = selectedClothingPrefab?.ConfigElement?.Document;
+        if (IsDocumentForPath(document, path) || IsSelectedPrefabDocumentForPath(document, path))
         {
             return document;
         }
@@ -891,6 +917,46 @@ public sealed partial class CharacterViewerPlugin
 
         LuaCsLogger.LogError($"CharacterViewer could not find matching sprite element in {path}.");
         return null;
+    }
+
+    private static bool IsDocumentForPath(XDocument document, string path)
+    {
+        if (document == null || string.IsNullOrWhiteSpace(path)) { return false; }
+        return TryGetPathFromBaseUri(document.BaseUri, out string documentPath) && AreSamePath(documentPath, path);
+    }
+
+    private bool IsSelectedPrefabDocumentForPath(XDocument document, string path)
+    {
+        return document != null &&
+               document == selectedClothingPrefab?.ConfigElement?.Document &&
+               AreSamePath(selectedClothingPrefab?.FilePath?.FullPath, path);
+    }
+
+    private static bool TryGetPathFromBaseUri(string baseUri, out string path)
+    {
+        path = null;
+        if (string.IsNullOrWhiteSpace(baseUri)) { return false; }
+
+        try
+        {
+            path = Uri.TryCreate(baseUri, UriKind.Absolute, out Uri uri) && uri.IsFile
+                ? uri.LocalPath
+                : Path.GetFullPath(baseUri);
+            return !string.IsNullOrWhiteSpace(path);
+        }
+        catch
+        {
+            path = null;
+            return false;
+        }
+    }
+
+    private static bool AreSamePath(string first, string second)
+    {
+        if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second)) { return false; }
+        string normalizedFirst = Path.GetFullPath(first).CleanUpPathCrossPlatform(correctFilenameCase: false);
+        string normalizedSecond = Path.GetFullPath(second).CleanUpPathCrossPlatform(correctFilenameCase: false);
+        return string.Equals(normalizedFirst, normalizedSecond, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool TryFindWritableSpriteElement(XDocument document, ContentXElement spriteElement, out XElement writableElement)
@@ -1024,13 +1090,14 @@ public sealed partial class CharacterViewerPlugin
 
     private bool TryGetWearableXmlPath(ContentXElement spriteElement, out string path, bool showWarning)
     {
-        path = selectedClothingPrefab?.FilePath?.FullPath;
+        string prefabPath = selectedClothingPrefab?.FilePath?.FullPath;
+        string sourcePath = null;
         if (!string.IsNullOrWhiteSpace(spriteElement?.BaseUri))
         {
-            path = Uri.TryCreate(spriteElement.BaseUri, UriKind.Absolute, out Uri uri) && uri.IsFile
-                ? uri.LocalPath
-                : Path.GetFullPath(spriteElement.BaseUri);
+            TryGetPathFromBaseUri(spriteElement.BaseUri, out sourcePath);
         }
+
+        path = ShouldPreferSelectedPrefabPath(spriteElement, prefabPath, sourcePath) ? prefabPath : sourcePath ?? prefabPath;
         if (string.IsNullOrWhiteSpace(path))
         {
             if (showWarning)
@@ -1040,6 +1107,21 @@ public sealed partial class CharacterViewerPlugin
             return false;
         }
         return true;
+    }
+
+    private bool ShouldPreferSelectedPrefabPath(ContentXElement spriteElement, string prefabPath, string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(prefabPath)) { return false; }
+        if (string.IsNullOrWhiteSpace(sourcePath)) { return true; }
+        if (AreSamePath(prefabPath, sourcePath)) { return true; }
+        if (!IsPathInLocalMods(prefabPath) || IsPathInLocalMods(sourcePath)) { return false; }
+        if (spriteElement?.ContentPackage != null && spriteElement.ContentPackage == selectedClothingPrefab?.ContentPackage) { return true; }
+
+        XElement prefabElement = selectedClothingPrefab?.ConfigElement?.Element;
+        XElement element = spriteElement?.Element;
+        if (prefabElement == null || element == null) { return false; }
+
+        return element == prefabElement || element.Ancestors().Contains(prefabElement);
     }
 
     private static bool IsPathInLocalMods(string path)
