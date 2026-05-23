@@ -1,10 +1,13 @@
-﻿using Barotrauma.Networking;
+﻿using Barotrauma.LuaCs.Events;
+using Barotrauma.Networking;
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
+using static Barotrauma.CharacterHealth;
+using static Barotrauma.MedicalClinic;
 
 namespace Barotrauma.Items.Components
 {
@@ -20,7 +23,7 @@ namespace Barotrauma.Items.Components
         private float range;
 
         private int channel;
-        
+
         private float chatMsgCooldown;
 
         private string prevSignal;
@@ -228,6 +231,10 @@ namespace Barotrauma.Items.Components
 
         public void TransmitSignal(Signal signal, bool sentFromChat)
         {
+            bool? should = null;
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventWifiSignalTransmitted>(x => should = x.OnWifiSignalTransmitted(this, signal, sentFromChat) ?? should);
+            if (should != null && should.Value) { return; }
+
             bool chatMsgSent = false;
 
             var receivers = GetReceiversInRange();
@@ -319,15 +326,15 @@ namespace Barotrauma.Items.Components
                     }
                 }
             }
-            if (chatMsgSent) 
-            { 
+            if (chatMsgSent)
+            {
                 chatMsgCooldown = MinChatMessageInterval;
                 IsActive = true;
             }
 
             prevSignal = signal.value;
         }
-                
+
         public override void ReceiveSignal(Signal signal, Connection connection)
         {
             if (connection == null) { return; }

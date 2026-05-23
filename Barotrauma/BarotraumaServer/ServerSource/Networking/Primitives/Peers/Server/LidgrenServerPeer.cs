@@ -30,7 +30,8 @@ namespace Barotrauma.Networking
                 MaximumConnections = NetConfig.MaxPlayers * 2,
                 EnableUPnP = serverSettings.EnableUPnP,
                 Port = serverSettings.Port,
-                DualStack = GameSettings.CurrentConfig.UseDualModeSockets
+                DualStack = GameSettings.CurrentConfig.UseDualModeSockets,
+                LocalAddress = serverSettings.ListenIPAddress,
             };
             if (NetConfig.UseLenientHandshake)
             {

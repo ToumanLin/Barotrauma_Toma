@@ -1,0 +1,29 @@
+diff --git a/Deploy/DeployAll/Util.cs b/Deploy/DeployAll/Util.cs
+index 0a4fc80911..bcec72a168 100644
+--- a/Deploy/DeployAll/Util.cs
++++ b/Deploy/DeployAll/Util.cs
+@@ -36,7 +36,16 @@ public static class Util
+     {
+         var dir = new DirectoryInfo(sourceDir);
+ 
+-        DirectoryInfo[] dirs = dir.GetDirectories();
++        DirectoryInfo[] dirs;
++        try
++        {
++            dirs = dir.GetDirectories();
++        }
++        catch (DirectoryNotFoundException ex)
++        {
++            Console.WriteLine($"WARNING: attempted to copy non-existing directory: {ex}");
++            return;
++        }
+ 
+         Directory.CreateDirectory(destinationDir);
+ 
+@@ -152,4 +161,4 @@ public static class Util
+     public static Process StartProcess(ProcessStartInfo info)
+         => Process.Start(info)
+             ?? throw new Exception($"Failed to start process \"{info.FileName}\"");
+-}
+\ No newline at end of file
++}

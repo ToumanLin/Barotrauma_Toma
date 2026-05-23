@@ -1,3 +1,12 @@
+# LuaCsForBarotrauma 
+This is a Barotrauma modification that adds Lua and Cs modding support.
+
+### Online Documentation: https://evilfactory.github.io/LuaCsForBarotrauma
+### VS Code Documentation: https://gitee.com/zhurengong/btlua-docs
+### Discord: https://discord.gg/f9zvNNuxu9
+
+### This project uses a fork of Moonsharp: https://github.com/evilfactory/moonsharp
+
 # Barotrauma
 
 Copyright © FakeFish Ltd 2017-2026

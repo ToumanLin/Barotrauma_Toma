@@ -18,6 +18,9 @@ namespace Barotrauma.Networking
             MultiPlayerCampaign campaign = GameMain.GameSession.GameMode as MultiPlayerCampaign;
             foreach (Client c in networkMember.ConnectedClients)
             {
+                if (LuaCsSetup.Instance.Game.overrideRespawnSub)
+                    continue;
+
                 if (!c.InGame) { continue; }
                 if (c.SpectateOnly && (GameMain.Server.ServerSettings.AllowSpectating || GameMain.Server.OwnerConnection == c.Connection)) { continue; }
                 if (c.Character != null && !c.Character.IsDead) { continue; }
@@ -166,6 +169,10 @@ namespace Barotrauma.Networking
 
         private bool ShouldStartRespawnCountdown(int characterToRespawnCount)
         {
+            if (LuaCsSetup.Instance.Game.overrideRespawnSub)
+            {
+                characterToRespawnCount = 0;
+            }
             return characterToRespawnCount >= GetMinCharactersToRespawn();
         }
 
@@ -180,7 +187,7 @@ namespace Barotrauma.Networking
 
             var teamId = teamSpecificState.TeamID;
             var respawnShuttle = GetShuttle(teamId);
-            if (respawnShuttle != null)
+            if (respawnShuttle != null && !LuaCsSetup.Instance.Game.overrideRespawnSub)
             {
                 respawnShuttle.Velocity = Vector2.Zero;
             }
@@ -228,12 +235,19 @@ namespace Barotrauma.Networking
             }
         }
 
-        private void DispatchShuttle(TeamSpecificState teamSpecificState)
+        public void DispatchShuttle(TeamSpecificState teamSpecificState)
         {
             if (RespawnShuttles.Any())
             {
                 ResetShuttle(teamSpecificState);
-                teamSpecificState.CurrentState = State.Transporting;
+                if (LuaCsSetup.Instance.Game.overrideRespawnSub)
+				{
+                    teamSpecificState.CurrentState = State.Waiting;
+                }
+                else
+				{
+                    teamSpecificState.CurrentState = State.Transporting;
+                }
                 GameMain.Server.CreateEntityEvent(this);
                 SetShuttleBodyType(teamSpecificState.TeamID, FarseerPhysics.BodyType.Dynamic);
             }

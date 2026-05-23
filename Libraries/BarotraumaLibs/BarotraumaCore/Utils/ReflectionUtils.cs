@@ -1,5 +1,7 @@
 ﻿#nullable enable
+using Barotrauma.Debugging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -9,11 +11,8 @@ namespace Barotrauma
 {
     public static class ReflectionUtils
     {
-        private static readonly Dictionary<Assembly, ImmutableArray<Type>> cachedNonAbstractTypes
-            = new Dictionary<Assembly, ImmutableArray<Type>>();
-
-        private static readonly Dictionary<Assembly, Dictionary<Type, ImmutableArray<Type>>> cachedDerivedNonAbstract
-            = new Dictionary<Assembly, Dictionary<Type, ImmutableArray<Type>>>();
+        private static readonly ConcurrentDictionary<Assembly, ImmutableArray<Type>> CachedNonAbstractTypes = new();
+        private static readonly ConcurrentDictionary<string, ImmutableArray<Type>> TypeSearchCache = new();
 
         public static T GetValueFromStaticProperty<T>(this PropertyInfo property)
         {
@@ -34,23 +33,91 @@ namespace Barotrauma
         public static IEnumerable<Type> GetDerivedNonAbstract<T>()
         {
             Type t = typeof(T);
+            string typeName = t.FullName ?? t.Name;
+            
+            // search quick lookup cache
+            if (TypeSearchCache.TryGetValue(typeName, out var value))
+            {
+                return value;
+            }
+            
+            // doesn't exist so let's add it.
             Assembly assembly = typeof(T).Assembly;
-            if (!cachedNonAbstractTypes.ContainsKey(assembly))
+            if (!CachedNonAbstractTypes.ContainsKey(assembly))
             {
-                cachedNonAbstractTypes[assembly] = assembly.GetTypes()
-                    .Where(t => !t.IsAbstract).ToImmutableArray();
+                AddNonAbstractAssemblyTypes(assembly);
+            }            
+                
+            // build cache from registered assemblies' types.
+            var list = CachedNonAbstractTypes.Values
+                .SelectMany(arr => arr.Where(type => type.IsSubclassOf(t)))
+                .ToImmutableArray();
 
-                cachedDerivedNonAbstract[assembly] = new Dictionary<Type, ImmutableArray<Type>>();
-            }
-            if (cachedDerivedNonAbstract[assembly].TryGetValue(t, out var cachedArray))
+            if (list.Length == 0)
             {
-                return cachedArray;
+                return ImmutableArray<Type>.Empty;    // No types, don't add to cache
             }
-            var newArray = cachedNonAbstractTypes[assembly].Where(t2 => t2.IsSubclassOf(t)).ToImmutableArray();
-            cachedDerivedNonAbstract[assembly].Add(t, newArray);
-            return newArray;
+
+            if (!TypeSearchCache.TryAdd(typeName, list))
+            {
+                DebugConsoleCore.Log($"ReflectionUtils.AddNonAbstractAssemblyTypes(): Error while adding to quick lookup cache.");
+            }
+
+            return list;
         }
 
+        /// <summary>
+        /// Adds an assembly's Non-Abstract Types to the cache for Barotrauma's Type lookup. 
+        /// </summary>
+        /// <param name="assembly">Assembly to be added</param>
+        /// <param name="overwrite">Whether or not to overwrite an entry if the assembly already exists within it.</param>
+        public static void AddNonAbstractAssemblyTypes(Assembly assembly, bool overwrite = false)
+        {
+            if (CachedNonAbstractTypes.ContainsKey(assembly))
+            {
+                if (!overwrite)
+                {
+                    return;
+                }
+
+                CachedNonAbstractTypes.Remove(assembly, out _);
+            }
+
+            try
+            {
+                if (!CachedNonAbstractTypes.TryAdd(assembly, assembly.GetTypes().Where(t => !t.IsAbstract).ToImmutableArray()))
+                {
+                }
+                else
+                {
+                    TypeSearchCache.Clear();    // Needs to be rebuilt to include potential new types
+                }
+            }
+            catch (ReflectionTypeLoadException)
+            {
+            }
+        }
+
+        /// <summary>
+        /// Removes an assembly from the cache for Barotrauma's Type lookup.
+        /// </summary>
+        /// <param name="assembly">Assembly to remove.</param>
+        public static void RemoveAssemblyFromCache(Assembly assembly)
+        {
+            CachedNonAbstractTypes.Remove(assembly, out _);
+            TypeSearchCache.Clear();
+        }
+
+        /// <summary>
+        /// Clears all cached assembly data and rebuilds types list only to include base Barotrauma types. 
+        /// </summary>
+        public static void ResetCache()
+        {
+            CachedNonAbstractTypes.Clear();
+            TypeSearchCache.Clear();
+            CachedNonAbstractTypes.TryAdd(typeof(ReflectionUtils).Assembly, typeof(ReflectionUtils).Assembly.GetTypes().Where(t => !t.IsAbstract).ToImmutableArray());
+        }
+        
         public static Type? GetType(string nameWithNamespace)
         {
             if (Type.GetType(nameWithNamespace) is Type t) { return t; }

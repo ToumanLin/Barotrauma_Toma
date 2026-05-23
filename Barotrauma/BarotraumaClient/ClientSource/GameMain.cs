@@ -18,6 +18,7 @@ using System.Reflection;
 using System.Threading;
 using Barotrauma.Extensions;
 using System.Collections.Immutable;
+using Barotrauma.LuaCs.Events;
 
 namespace Barotrauma
 {
@@ -294,6 +295,8 @@ namespace Barotrauma
             MainThread = Thread.CurrentThread;
 
             Window.FileDropped += OnFileDropped;
+
+            LuaCsSetup.Instance.GetType();
         }
 
         public static void ExecuteAfterContentFinishedLoading(Action action)
@@ -1289,6 +1292,18 @@ namespace Barotrauma
         {
             IsExiting = true;
             CreatureMetrics.Save();
+            try
+            {
+                if (LuaCsSetup.Instance is not null)
+                {
+                    LuaCsSetup.Instance.Dispose();
+                }
+            }
+            catch (Exception e)
+            {
+                DebugConsole.ThrowError($"Error while disposing of LuaCsForBarotrauma: {e.Message} | {e.StackTrace}");
+            }
+            
             DebugConsole.NewMessage("Exiting...");
             Client?.Quit();
             SteamManager.ShutDown();

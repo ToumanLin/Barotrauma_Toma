@@ -110,14 +110,17 @@ namespace Barotrauma.Networking
             }
         }
 
-        public void WriteLine(string line, MessageType messageType)
+        public void WriteLine(string line, MessageType messageType, bool logToConsole = true)
         {
             //string logLine = "[" + DateTime.Now.ToLongTimeString() + "] " + line;
 
             var newText = new LogMessage(line, messageType);
 
 #if SERVER
-            DebugConsole.NewMessage(newText.Text.SanitizedValue, messageColor[messageType]); //TODO: REMOVE
+            if (logToConsole)
+            {
+                DebugConsole.NewMessage(newText.Text.SanitizedValue, messageColor[messageType]); //TODO: REMOVE
+            }
 #endif
 
             lines.Enqueue(newText);

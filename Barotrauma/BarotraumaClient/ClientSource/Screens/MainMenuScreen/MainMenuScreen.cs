@@ -534,6 +534,7 @@ namespace Barotrauma
                 }
             };
 #endif
+
             var minButtonSize = new Point(120, 20);
             var maxButtonSize = new Point(480, 80);
 
@@ -1027,7 +1028,7 @@ namespace Barotrauma
             else
             {
                 StartServer();
-            }
+            }            
         }
 
         private IEnumerable<CoroutineStatus> WaitForSubmarineHashCalculations(GUIMessageBox messageBox)

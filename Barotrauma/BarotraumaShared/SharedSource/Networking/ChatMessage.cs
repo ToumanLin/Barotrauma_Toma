@@ -62,7 +62,7 @@ namespace Barotrauma.Networking
             new Color(255, 0, 0),       // blocked by spam filter
         };
 
-        public readonly string Text;
+        public string Text;
 
         private string translatedText;
         public string TranslatedText
@@ -104,21 +104,16 @@ namespace Barotrauma.Networking
 
         public readonly string SenderName;
 
-        private Color? customTextColor;
+        private Color? customTextColor = null;
+
         public Color Color
         {
-            get
-            {
-                if (customTextColor != null) { return customTextColor.Value; }
-                int intType = (int)Type;
-                if (intType < 0 || intType >= MessageColor.Length) { return Color.White; }
-                return MessageColor[intType];
+            get 
+            { 
+                if(customTextColor == null) return MessageColor[(int)Type];
+                return (Color)customTextColor;
             }
-
-            set
-            {
-                customTextColor = value;
-            }
+			set { customTextColor = value; }
         }
 
         public static string GetTimeStamp()

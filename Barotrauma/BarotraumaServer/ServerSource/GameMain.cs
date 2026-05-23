@@ -10,7 +10,10 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Xml.Linq;
+using MoonSharp.Interpreter;
+using System.Net;
 using Barotrauma.Extensions;
+using Barotrauma.LuaCs.Events;
 
 namespace Barotrauma
 {
@@ -108,6 +111,8 @@ namespace Barotrauma
             GameScreen = new GameScreen();
 
             MainThread = Thread.CurrentThread;
+
+            LuaCsSetup.Instance.GetType();
         }
 
         public void Init()
@@ -152,6 +157,7 @@ namespace Barotrauma
             int maxPlayers = 10; 
             Option<int> ownerKey = Option.None;
             Option<P2PEndpoint> ownerEndpoint = Option.None;
+            IPAddress listenIp = IPAddress.Any;
 
             XDocument doc = XMLExtensions.TryLoadXml(ServerSettings.SettingsFile);
             if (doc?.Root == null)
@@ -186,6 +192,12 @@ namespace Barotrauma
                     case "-name":
                         name = CommandLineArgs[i + 1];
                         i++;
+                        break;
+                    case "-ip":
+                        if (IPAddress.TryParse(CommandLineArgs[i + 1], out IPAddress address))
+                            listenIp = address;
+                        else
+                            DebugConsole.ThrowError($"Invalid Ip Address '{CommandLineArgs[i + 1]}'.");
                         break;
                     case "-port":
                         int.TryParse(CommandLineArgs[i + 1], out port);
@@ -238,6 +250,7 @@ namespace Barotrauma
 
             Server = new GameServer(
                 name,
+                listenIp,
                 port,
                 queryPort,
                 publiclyVisible,
@@ -337,6 +350,8 @@ namespace Barotrauma
                 prevTicks = currTicks;
                 while (Timing.Accumulator >= Timing.Step)
                 {
+                    performanceCounterTimer.Start();
+
                     Timing.TotalTime += Timing.Step;
                     Timing.TotalTimeUnpaused += Timing.Step;                    
                     DebugConsole.Update();
@@ -350,6 +365,18 @@ namespace Barotrauma
                     EosInterface.Core.Update();
                     TaskPool.Update();
                     CoroutineManager.Update(paused: false, (float)Timing.Step);
+
+                    performanceCounterTimer.Stop();
+                    if (LuaCsSetup.Instance.PerformanceCounterService.EnablePerformanceCounter)
+                    {
+                        LuaCsSetup.Instance.PerformanceCounterService.AddElapsedTicks(new SimplePerformanceData("Update", performanceCounterTimer.ElapsedTicks));
+                    }
+                    if (LuaCsSetup.Instance.PerformanceCounter.EnablePerformanceCounter)
+                    {
+                        LuaCsSetup.Instance.PerformanceCounter.UpdateElapsedTime = (double)performanceCounterTimer.ElapsedTicks / Stopwatch.Frequency;
+                    }
+                    
+                    performanceCounterTimer.Reset();
 
                     Timing.Accumulator -= Timing.Step;
                     updateCount++;
@@ -431,6 +458,17 @@ namespace Barotrauma
         public void Exit()
         {
             ShouldRun = false;
+            try
+            {
+                if (LuaCsSetup.Instance is not null)
+                {
+                    LuaCsSetup.Instance.Dispose();
+                }
+            }
+            catch (Exception e)
+            {
+                DebugConsole.ThrowError($"Error while disposing of LuaCsForBarotrauma: {e.Message} | {e.StackTrace}");
+            }
         }
     }
 }

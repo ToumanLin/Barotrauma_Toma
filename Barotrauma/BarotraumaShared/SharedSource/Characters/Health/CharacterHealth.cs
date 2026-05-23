@@ -1,18 +1,25 @@
 ﻿using Barotrauma.Abilities;
+using Barotrauma.Abilities;
 using Barotrauma.Extensions;
+using Barotrauma.Extensions;
+using Barotrauma.LuaCs.Events;
+using Barotrauma.Networking;
 using Barotrauma.Networking;
 using Microsoft.Xna.Framework;
+using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
+using static OneOf.Types.TrueFalseOrNull;
 
 namespace Barotrauma
 {
     partial class CharacterHealth
     {
-        class LimbHealth
+        public class LimbHealth
         {
             public Sprite IndicatorSprite;
             public Sprite HighlightSprite;
@@ -480,6 +487,7 @@ namespace Barotrauma
                     {
                         AddLimbAffliction(limbHealth, limb: null, affliction, allowStacking: allowStacking, recalculateVitality: recalculateVitality);
                     }
+
                 }
                 else
                 {
@@ -648,6 +656,10 @@ namespace Barotrauma
                     "\" only has health configured for" + limbHealths.Count + " limbs but the limb " + hitLimb.type + " is targeting index " + hitLimb.HealthIndex);
                 return;
             }
+
+            bool? should = null;
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventCharacterApplyDamage>(x => should = x.OnCharacterApplyDamage(this, attackResult, hitLimb, allowStacking) ?? should);
+            if (should != null && should.Value) { return; }
             
             foreach (Affliction newAffliction in attackResult.Afflictions)
             {
@@ -816,6 +828,10 @@ namespace Barotrauma
             if (Character.EmpVulnerability <= 0 && newAffliction.Prefab.AfflictionType == AfflictionPrefab.EMPType) { return; }
             if (newAffliction.Prefab.TargetSpecies.Any() && newAffliction.Prefab.TargetSpecies.None(s => s == Character.SpeciesName)) { return; }
             if (Character.Params.Health.ImmunityIdentifiers.Contains(newAffliction.Identifier)) { return; }
+
+            bool? should = null;
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventCharacterApplyAffliction>(x => should = x.OnCharacterApplyAffliction(this, limbHealth, newAffliction, allowStacking) ?? should);
+            if (should != null && should.Value) { return; }
 
             Affliction existingAffliction = null;
             foreach ((Affliction affliction, LimbHealth value) in afflictions)

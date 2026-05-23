@@ -5,6 +5,8 @@ using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
 using Barotrauma.Extensions;
+using Barotrauma;
+using MoonSharp.Interpreter;
 using Barotrauma.IO;
 using Barotrauma.Networking;
 #if CLIENT

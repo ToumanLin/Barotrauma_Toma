@@ -1,0 +1,218 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Publish release
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      target:
+        description: "The git ref to checkout, build from and release"
+        required: true
+        type: string
+      tag:
+        description: "The tag of the release"
+        required: true
+        type: string
+      prerelease:
+        description: "Prerelease"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CI_DIR: 2049ef39-42a2-46d2-b513-ee6d2e3a7b15
+  RELEASES: |
+    windows:client:Windows/Client
+    windows:server:Windows/Server
+    linux:client:Linux/Client
+    linux:server:Linux/Server
+    mac:client:Mac/Client/Barotrauma.app/Contents/MacOS
+    mac:server:Mac/Server
+  ARCHIVE_BASE_NAME: luacsforbarotrauma
+  # XXX: these file names are subject to shell expansion.
+  # Be careful when using special characters.
+  ARCHIVE_FILES_SERVER: |
+    DedicatedServer.deps.json
+    DedicatedServer.dll
+    DedicatedServer.pdb
+    Publicized/DedicatedServer.dll
+  ARCHIVE_FILES_CLIENT: |
+    Barotrauma.deps.json
+    Barotrauma.dll
+    Barotrauma.pdb
+    DedicatedServer.deps.json
+    DedicatedServer.dll
+    DedicatedServer.pdb
+    Publicized/Barotrauma.dll
+    Publicized/DedicatedServer.dll
+  ARCHIVE_FILES_SHARED: |
+    BarotraumaCore.dll
+    BarotraumaCore.pdb
+    Publicized/BarotraumaCore.dll
+    0Harmony.dll
+    Sigil.dll
+    MoonSharp.Interpreter.dll
+    MoonSharp.VsCodeDebugger.dll
+    MonoMod.Backports.dll
+    MonoMod.Core.dll
+    MonoMod.RuntimeDetour.dll
+    MonoMod.ILHelpers.dll
+    MonoMod.Utils.dll
+    MonoMod.Iced.dll
+    Mono.Cecil.dll
+    Mono.Cecil.Mdb.dll
+    Mono.Cecil.Pdb.dll
+    Mono.Cecil.Rocks.dll
+    LightInject.dll
+    OneOf.dll
+    FluentResults.dll
+    Basic.Reference.Assemblies.Net80.dll
+    Microsoft.Extensions.Logging.Abstractions.dll
+    Microsoft.Toolkit.Diagnostics.dll
+    Microsoft.CodeAnalysis.CSharp.dll
+    Microsoft.CodeAnalysis.dll
+    System.Collections.Immutable.dll
+    System.Reflection.Metadata.dll
+    System.Runtime.CompilerServices.Unsafe.dll
+    mscordaccore_amd64_amd64_*
+    LocalMods/LuaCsForBarotrauma
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      target: ${{ inputs.target }}
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: build
+          path: ${{ env.CI_DIR }}
+
+      - name: Extract build artifacts
+        run: |
+          artifacts_dir="$(realpath -m "$CI_DIR/artifacts")"
+          mkdir -p "$artifacts_dir"
+          tar -xzf "$CI_DIR/build.tar.gz" -C "$artifacts_dir"
+          rm "$CI_DIR/build.tar.gz"
+
+      - name: Create archives
+        run: |
+          set -e
+          shopt -s globstar nullglob
+          shopt -u dotglob
+
+          # This converts a newline-separated (LF) list into a Bash array
+          # NOTE: this doesn't discard the trailing LF that GitHub actions
+          # append (which results in an extra entry in the array).
+          lines_to_array() {
+            IFS=$'\n' readarray -td $'\n' "$1" <<< "${!1}"
+          }
+
+          lines_to_array ARCHIVE_FILES_SHARED
+          lines_to_array ARCHIVE_FILES_CLIENT
+          lines_to_array ARCHIVE_FILES_SERVER
+          lines_to_array RELEASES
+
+          artifacts_dir="$(realpath -m "$CI_DIR/artifacts")"
+          mkdir -p "$artifacts_dir"
+
+          archives_dir="$(realpath -m "$CI_DIR/archives")"
+          mkdir -p "$archives_dir"
+
+          refs_dir="$(realpath -m "$CI_DIR/refs")"
+          mkdir -p "${refs_dir}"
+          mkdir -p "${refs_dir}/Windows"
+          mkdir -p "${refs_dir}/Linux"
+          mkdir -p "${refs_dir}/OSX"
+          
+          # Archive Refs, used by mod developers
+          cp "${artifacts_dir}/Windows/Client/Publicized/Barotrauma.dll" "${refs_dir}/Windows/Barotrauma.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/DedicatedServer.dll" "${refs_dir}/Windows/DedicatedServer.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/BarotraumaCore.dll" "${refs_dir}/Windows/BarotraumaCore.dll"
+          cp "${artifacts_dir}/Linux/Client/Publicized/Barotrauma.dll" "${refs_dir}/Linux/Barotrauma.dll"
+          cp "${artifacts_dir}/Linux/Client/Publicized/DedicatedServer.dll" "${refs_dir}/Linux/DedicatedServer.dll"
+          cp "${artifacts_dir}/Linux/Client/Publicized/BarotraumaCore.dll" "${refs_dir}/Linux/BarotraumaCore.dll"
+          cp "${artifacts_dir}/Mac/Client/Barotrauma.app/Contents/MacOS/Publicized/Barotrauma.dll" "${refs_dir}/OSX/Barotrauma.dll"
+          cp "${artifacts_dir}/Mac/Client/Barotrauma.app/Contents/MacOS/Publicized/DedicatedServer.dll" "${refs_dir}/OSX/DedicatedServer.dll"
+          cp "${artifacts_dir}/Mac/Client/Barotrauma.app/Contents/MacOS/Publicized/BarotraumaCore.dll" "${refs_dir}/OSX/BarotraumaCore.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/MonoGame.Framework.Windows.NetStandard.dll" "${refs_dir}/MonoGame.Framework.Windows.NetStandard.dll"
+          cp "${artifacts_dir}/Linux/Client/Publicized/MonoGame.Framework.Linux.NetStandard.dll" "${refs_dir}/MonoGame.Framework.Linux.NetStandard.dll"
+          cp "${artifacts_dir}/Mac/Client/Barotrauma.app/Contents/MacOS/Publicized/MonoGame.Framework.MacOS.NetStandard.dll" "${refs_dir}/MonoGame.Framework.MacOS.NetStandard.dll"
+          # Those are the same across all the platforms, so i guess it doesn't matter?
+          cp "${artifacts_dir}/Windows/Client/Publicized/0Harmony.dll" "${refs_dir}/0Harmony.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/MonoMod.Utils.dll" "${refs_dir}/MonoMod.Utils.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/MonoMod.RuntimeDetour.dll" "${refs_dir}/MonoMod.RuntimeDetour.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/MonoMod.ILHelpers.dll" "${refs_dir}/MonoMod.ILHelpers.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/MonoMod.Iced.dll" "${refs_dir}/MonoMod.Iced.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/MonoMod.Backports.dll" "${refs_dir}/MonoMod.Backports.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/Farseer.NetStandard.dll" "${refs_dir}/Farseer.NetStandard.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/Lidgren.NetStandard.dll" "${refs_dir}/Lidgren.NetStandard.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/Mono.Cecil.dll" "${refs_dir}/Mono.Cecil.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/MoonSharp.Interpreter.dll" "${refs_dir}/MoonSharp.Interpreter.dll"
+          cp "${artifacts_dir}/Windows/Client/Publicized/XNATypes.dll" "${refs_dir}/XNATypes.dll"
+          cd "${refs_dir}"
+          zip -r "${archives_dir}/${ARCHIVE_BASE_NAME}_refs.zip" .
+
+          for i in "${!RELEASES[@]}"; do
+            [[ -z "${RELEASES[i]}" ]] && continue
+            (
+              IFS=':' read platform side publish_dir _rest <<< "${RELEASES[i]}"
+              cd "${artifacts_dir}/${publish_dir}"
+
+              echo "Creating build_${platform}_${side}.zip"
+              zip --must-match -qr "${archives_dir}/${ARCHIVE_BASE_NAME}_build_${platform}_${side}.zip" *
+
+              echo "Creating build_${platform}_${side}.tar.gz"
+              tar -czf "${archives_dir}/${ARCHIVE_BASE_NAME}_build_${platform}_${side}.tar.gz" \
+                --owner=0 --group=0 \
+                *
+
+              if [[ "$side" == "client" ]]; then
+                files=(
+                  ${ARCHIVE_FILES_SHARED[@]}
+                  ${ARCHIVE_FILES_CLIENT[@]}
+                )
+              elif [[ "$side" == "server" ]]; then
+                files=(
+                  ${ARCHIVE_FILES_SHARED[@]}
+                  ${ARCHIVE_FILES_SERVER[@]}
+                )
+              else
+                echo "Invalid side: $side"
+                exit 1
+              fi
+
+              echo "Creating patch_${platform}_${side}.zip"
+              zip \
+                --must-match \
+                -qr \
+                "${archives_dir}/${ARCHIVE_BASE_NAME}_patch_${platform}_${side}.zip" \
+                "${files[@]}"
+
+              echo "Creating patch_${platform}_${side}.tar.gz"
+              tar \
+                -zcf "${archives_dir}/${ARCHIVE_BASE_NAME}_patch_${platform}_${side}.tar.gz" \
+                --owner=0 --group=0 \
+                "${files[@]}"
+            )
+          done
+
+      - name: Publish release
+        uses: notpeelz/action-gh-create-release@c1bebd17c8a128e8db4165a68be4dc4e3f106ff1 # v5.0.1
+        with:
+          target: ${{ inputs.target }}
+          tag: ${{ inputs.tag }}
+          prerelease: ${{ inputs.prerelease }}
+          strategy: replace
+          title: "Automatic build"
+          body: "Automatic build"
+          files: |
+            ${{ env.CI_DIR }}/archives/${{ env.ARCHIVE_BASE_NAME }}_{build,patch}_{windows,linux,mac}_{client,server}.zip
+            ${{ env.CI_DIR }}/archives/${{ env.ARCHIVE_BASE_NAME }}_{build,patch}_linux_{client,server}.tar.gz
+            ${{ env.CI_DIR }}/archives/${{ env.ARCHIVE_BASE_NAME }}_refs.zip

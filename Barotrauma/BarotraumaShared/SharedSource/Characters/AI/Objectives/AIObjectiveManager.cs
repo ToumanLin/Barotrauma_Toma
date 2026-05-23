@@ -96,6 +96,11 @@ namespace Barotrauma
             CreateAutonomousObjectives();
         }
 
+        public void AddObjective(AIObjective objective)
+		{
+            AddObjective<AIObjective>(objective);
+		}
+
         public void AddObjective<T>(T objective) where T : AIObjective
         {
             if (objective == null)

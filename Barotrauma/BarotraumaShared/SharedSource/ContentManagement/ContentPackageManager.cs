@@ -9,8 +9,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Xml.Linq;
 using Barotrauma.IO;
+using Barotrauma.LuaCs.Events;
 using Barotrauma.Steam;
 using Microsoft.Xna.Framework;
+using OneOf.Types;
 
 namespace Barotrauma
 {
@@ -42,13 +44,16 @@ namespace Barotrauma
                     ? (Core as ContentPackage).ToEnumerable().CollectionConcat(Regular)
                     : Enumerable.Empty<ContentPackage>();
 
-            private static class BackupPackages
+            public static class BackupPackages
             {
                 public static CorePackage? Core;
                 public static ImmutableArray<RegularPackage>? Regular;
             }
 
-            public static void SetCore(CorePackage newCore) => SetCoreEnumerable(newCore).Consume();
+            public static void SetCore(CorePackage newCore)
+            {
+                SetCoreEnumerable(newCore).Consume();
+            }
             
             public static IEnumerable<LoadProgress> SetCoreEnumerable(CorePackage newCore)
             {
@@ -85,7 +90,9 @@ namespace Barotrauma
             }
 
             public static void SetRegular(IReadOnlyList<RegularPackage> newRegular)
-                => SetRegularEnumerable(newRegular).Consume();
+            {
+                SetRegularEnumerable(newRegular).Consume();
+            }
             
             public static IEnumerable<LoadProgress> SetRegularEnumerable(IReadOnlyList<RegularPackage> inNewRegular)
             {
@@ -583,6 +590,11 @@ namespace Barotrauma
                                 package.UgcId.TryUnwrap(out var ugcId) && ugcId is SteamWorkshopId workshopId && workshopId.Value == childUgcItemId.Value));
                     foreach (var missingChild in missingChildren)
                     {
+                        if (missingChild.ToString() == "2559634234" ||
+                            missingChild.ToString() == "2795927223")
+                        {
+                            continue;
+                        }
                         enabledPackage.AddMissingDependency(missingChild);
                     }
                 });

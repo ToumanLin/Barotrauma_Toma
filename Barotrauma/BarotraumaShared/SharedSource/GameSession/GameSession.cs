@@ -760,6 +760,7 @@ namespace Barotrauma
             ReadyCheck.ReadyCheckCooldown = DateTime.MinValue;
             GUI.PreventPauseMenuToggle = false;
             HintManager.OnRoundStarted();
+
             EnableEventLogNotificationIcon(enabled: false);
 
             LogStartRoundStats();

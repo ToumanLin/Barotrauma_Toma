@@ -32,6 +32,9 @@ namespace Barotrauma
     {
         public static readonly List<Character> CharacterList = new List<Character>();
 
+        public static int CharacterUpdateInterval = 1;
+        private static int characterUpdateTick = 1;
+        
         public const float MaxHighlightDistance = 150.0f;
         public const float MaxDragDistance = 200.0f;
 
@@ -1456,6 +1459,7 @@ namespace Barotrauma
                 Spawner.CreateNetworkEvent(new EntitySpawner.SpawnEntity(newCharacter));
             }
 #endif
+
             return newCharacter;
         }
 
@@ -3426,8 +3430,21 @@ namespace Barotrauma
                 }
             }
 
-            foreach (Character character in CharacterList)
+            characterUpdateTick++;
+
+            if (characterUpdateTick % CharacterUpdateInterval == 0)
             {
+                for (int i = 0; i < CharacterList.Count; i++)
+                {
+                    if (LuaCsSetup.Instance.Game.UpdatePriorityCharacters.Contains(CharacterList[i])) continue;
+
+                    CharacterList[i].Update(deltaTime * CharacterUpdateInterval, cam);
+                }
+            }
+
+            foreach (Character character in LuaCsSetup.Instance.Game.UpdatePriorityCharacters)
+            {
+                if (character.Removed) { continue; }
                 Debug.Assert(character is { Removed: false });
                 character.Update(deltaTime, cam);
             }
@@ -4691,7 +4708,7 @@ namespace Barotrauma
         public AttackResult DamageLimb(Vector2 worldPosition, Limb hitLimb, IEnumerable<Affliction> afflictions, float stun, bool playSound, Vector2 attackImpulse, Character attacker = null, float damageMultiplier = 1, bool allowStacking = true, float penetration = 0f, bool shouldImplode = false, bool ignoreDamageOverlay = false, bool recalculateVitality = true)
         {
             if (Removed) { return new AttackResult(); }
-
+            
             SetStun(stun);
 
             if (attacker != null && attacker != this && 

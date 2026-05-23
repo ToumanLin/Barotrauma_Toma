@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Barotrauma.LuaCs.Events;
+using MoonSharp.Interpreter;
+using MoonSharp.VsCodeDebugger.SDK;
+using System;
 using System.Text;
 
 namespace Barotrauma.Networking
@@ -88,6 +91,10 @@ namespace Barotrauma.Networking
             HandleSpamFilter(c, txt, out bool flaggedAsSpam, similarityMultiplier);
             if (flaggedAsSpam) { return; }
 
+            bool? should = null;
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventChatMessage>(x => should = x.OnChatMessage(txt, c, type, ChatMessage.Create(c.Name, txt, type, null, c)) ?? should);
+            if (should != null && should.Value) { return; }
+
             if (type == ChatMessageType.Order)
             {
                 if (c.Character == null || c.Character.SpeechImpediment >= 100.0f || c.Character.IsDead) { return; }
@@ -130,6 +137,8 @@ namespace Barotrauma.Networking
             {
                 GameMain.Server.SendChatMessage(txt, senderClient: c, chatMode: chatMode, type: type == ChatMessageType.Team ? type : null);
             }
+
+
         }
 
         /// <summary>
@@ -200,7 +209,7 @@ namespace Barotrauma.Networking
             int length = 1 + //(byte)ServerNetObject.CHAT_MESSAGE
                             2 + //(UInt16)NetStateID
                             1 + //(byte)Type
-                            Encoding.UTF8.GetBytes(Text).Length + 2;
+                            (Text == null ? 0 : Encoding.UTF8.GetBytes(Text).Length) + 2;
             
             if (SenderClient != null)
             {

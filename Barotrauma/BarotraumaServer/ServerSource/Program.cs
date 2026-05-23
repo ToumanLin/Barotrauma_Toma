@@ -76,7 +76,11 @@ namespace Barotrauma
             }
 
             string executableDir = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
-            Directory.SetCurrentDirectory(executableDir);
+            if (!File.Exists(Path.Combine(executableDir, "workshop.txt")))
+            {
+                Directory.SetCurrentDirectory(executableDir);
+            }
+
             DebugConsoleCore.Init(
                 newMessage: (s, c) => DebugConsole.NewMessage(s, c),
                 log: DebugConsole.Log);

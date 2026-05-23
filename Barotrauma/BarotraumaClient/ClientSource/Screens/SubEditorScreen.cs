@@ -12,6 +12,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Xml.Linq;
+using Barotrauma.LuaCs.Events;
 using Barotrauma.Sounds;
 
 namespace Barotrauma

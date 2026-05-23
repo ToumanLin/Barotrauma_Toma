@@ -1,7 +1,10 @@
 ﻿using Barotrauma.Items.Components;
+using Barotrauma.LuaCs.Events;
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using static Barotrauma.CharacterHealth;
+using static Barotrauma.MedicalClinic;
 
 namespace Barotrauma.Networking
 {
@@ -9,7 +12,7 @@ namespace Barotrauma.Networking
     {
         private readonly ServerPeer netServer;
         private readonly List<VoipQueue> queues;
-        private readonly Dictionary<VoipQueue,DateTime> lastSendTime;
+        private readonly Dictionary<VoipQueue, DateTime> lastSendTime;
 
         public VoipServer(ServerPeer server)
         {
@@ -59,7 +62,7 @@ namespace Barotrauma.Networking
                     msg.WriteByte((byte)queue.QueueID);
                     msg.WriteRangedSingle(distanceFactor, 0.0f, 1.0f, 8);
                     queue.Write(msg);
-                    
+
                     netServer.Send(msg, recipient.Connection, DeliveryMethod.Unreliable);
                 }
             }
@@ -67,10 +70,10 @@ namespace Barotrauma.Networking
 
         private static bool CanReceive(Client sender, Client recipient, out float distanceFactor)
         {
-            if (Screen.Selected != GameMain.GameScreen) 
+            if (Screen.Selected != GameMain.GameScreen)
             {
                 distanceFactor = 0.0f;
-                return true; 
+                return true;
             }
 
             distanceFactor = 0.0f;
@@ -96,6 +99,14 @@ namespace Barotrauma.Networking
                 ChatMessage.CanUseRadio(sender.Character, out WifiComponent senderRadio) &&
                 (recipientSpectating || ChatMessage.CanUseRadio(recipient.Character, out recipientRadio)))
             {
+                bool? canUse = null;
+                LuaCsSetup.Instance.EventService.PublishEvent<IEventCanUseVoiceRadio>(x => canUse = x.OnCanUseVoiceRadio(sender, recipient) ?? canUse);
+
+                if (canUse != null)
+                {
+                    return canUse.Value;
+                }
+
                 if (recipientSpectating)
                 {
                     if (recipient.SpectatePos == null) { return true; }
@@ -109,6 +120,9 @@ namespace Barotrauma.Networking
                 }
             }
 
+            float range = 1.0f;
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventChangeLocalVoiceRange>(x => range = x.OnChangeLocalVoiceRange(sender, recipient) ?? range);
+
             if (recipientSpectating)
             {
                 if (recipient.SpectatePos == null) { return true; }
@@ -120,7 +134,7 @@ namespace Barotrauma.Networking
                 //otherwise do a distance check
                 float garbleAmount = ChatMessage.GetGarbleAmount(recipient.Character, sender.Character, ChatMessage.SpeakRangeVOIP);
                 distanceFactor = garbleAmount;
-                return garbleAmount < 1.0f;
+                return garbleAmount < range;
             }
         }
 

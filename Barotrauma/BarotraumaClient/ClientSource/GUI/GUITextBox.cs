@@ -36,6 +36,16 @@ namespace Barotrauma
         /// If the event launches, the text should already be up to date!
         /// </summary>
         public event OnTextChangedHandler OnTextChanged;
+        public OnTextChangedHandler OnTextChangedDelegate
+		{
+			set
+			{
+                OnTextChanged += (GUITextBox a, string b) =>
+                {
+                    return value.Invoke(a, b);
+                };
+            }
+        }
 
         public bool CaretEnabled { get; set; }
         public Color? CaretColor { get; set; }

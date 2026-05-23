@@ -18,7 +18,8 @@ namespace Barotrauma.Steam
             {
                 GamePort = (ushort)server.Port,
                 QueryPort = isPublic ? (ushort)server.QueryPort : (ushort)0,
-                Mode = isPublic ? Steamworks.InitServerMode.Authentication : Steamworks.InitServerMode.NoAuthentication
+                Mode = isPublic ? Steamworks.InitServerMode.Authentication : Steamworks.InitServerMode.NoAuthentication,
+                IpAddress = server.ServerSettings.ListenIPAddress
             };
             //options.QueryShareGamePort();
 

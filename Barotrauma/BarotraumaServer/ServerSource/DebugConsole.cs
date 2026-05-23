@@ -5,10 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Barotrauma.Steam;
 using Barotrauma.Extensions;
+using Barotrauma.LuaCs.Events;
 
 namespace Barotrauma
 {
@@ -313,7 +315,7 @@ namespace Barotrauma
             return client;
         }
 
-        private static void AssignOnClientRequestExecute(string names, Action<Client, Vector2, string[]> onClientRequestExecute)
+        public static void AssignOnClientRequestExecute(string names, Action<Client, Vector2, string[]> onClientRequestExecute)
         {
             var matchingCommand = commands.Find(c => c.Names.Intersect(names.Split('|').ToIdentifiers()).Any());
             if (matchingCommand == null)
@@ -733,7 +735,7 @@ namespace Barotrauma
                                 revokedCommands.Add(matchingCommand);
                             }
                         }
-                    }                    
+                    }
 
                     client.SetPermissions(client.Permissions, client.PermittedConsoleCommands.Except(revokedCommands).ToList());
                     GameMain.Server.UpdateClientPermissions(client);
@@ -898,9 +900,9 @@ namespace Barotrauma
             {
                 if (GameMain.Server?.KarmaManager == null) { return; }
                 GameMain.Server.KarmaManager.TestMode = !GameMain.Server.KarmaManager.TestMode;
-                NewMessage(GameMain.Server.KarmaManager.TestMode ? 
+                NewMessage(GameMain.Server.KarmaManager.TestMode ?
                     $"Karma test mode enabled by {client.Name}." :
-                    $"Karma test mode disabled by {client.Name}.", 
+                    $"Karma test mode disabled by {client.Name}.",
                     Color.LightGreen);
                 GameMain.Server.SendDirectChatMessage(
                     GameMain.Server.KarmaManager.TestMode ? "Karma test mode enabled." : "Karma test mode disabled.",
@@ -1250,7 +1252,7 @@ namespace Barotrauma
             (Client client, Vector2 cursorPos, string[] args) =>
             {
                 string text = string.Join(" ", args);
-                text = client.Name+": " + text;
+                text = client.Name + ": " + text;
                 if (GameMain.Server.OwnerConnection != null &&
                     client.Connection == GameMain.Server.OwnerConnection)
                 {

@@ -15,9 +15,11 @@ bld/
 [Rr]eleaseMac/
 [Dd]ebugLinux/
 [Rr]eleaseLinux/
+LocalMods/
 *.o
+*/Barotrauma*/doc/
 
-# Misc vs crap 
+# Misc vs crap
 *.v12.suo
 *.suo
 *.csproj.user

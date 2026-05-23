@@ -45,7 +45,7 @@ namespace Barotrauma.Networking
         TAKEOVERBOT,
         TOGGLE_RESERVE_BENCH,
 
-        REQUEST_BACKUP_INDICES // client wants a list of available backups for a save file
+        REQUEST_BACKUP_INDICES, // client wants a list of available backups for a save file
     }
 
     enum ClientNetSegment
@@ -103,7 +103,7 @@ namespace Barotrauma.Networking
         READY_CHECK,        //start, end and update a ready check
         UNLOCKRECIPE,       //unlocking a fabrication recipe
 
-        SEND_BACKUP_INDICES // the server sends a list of available backups for a save file
+        SEND_BACKUP_INDICES, // the server sends a list of available backups for a save file
     }
     enum ServerNetSegment
     {

@@ -39,6 +39,7 @@ namespace Barotrauma
 
     static partial class DebugConsole
     {
+        
         public partial class Command
         {
             public readonly ImmutableArray<Identifier> Names;
@@ -164,7 +165,7 @@ namespace Barotrauma
 
         private static WeakReference<Character> previousControlledCharacter;  // For SP freecam
 
-        private static void AssignOnExecute(string names, Action<string[]> onExecute)
+        public static void AssignOnExecute(string names, Action<string[]> onExecute)
         {
             var matchingCommand = commands.Find(c => c.Names.Intersect(names.Split('|').ToIdentifiers()).Any());
             if (matchingCommand == null)
@@ -2310,6 +2311,8 @@ namespace Barotrauma
                 NewMessage($"Start item set changed to \"{AutoItemPlacer.DefaultStartItemSet}\"");
             }, isCheat: false));
 
+            
+
             //"dummy commands" that only exist so that the server can give clients permissions to use them
             //TODO: alphabetical order?
             commands.Add(new Command("control", "control [character name]: Start controlling the specified character (client-only).", null, () =>
@@ -3162,7 +3165,7 @@ namespace Barotrauma
             }
         }
 
-        private static void SpawnItem(string[] args, Vector2 cursorPos, Character controlledCharacter, out string errorMsg)
+        public static void SpawnItem(string[] args, Vector2 cursorPos, Character controlledCharacter, out string errorMsg)
         {
             errorMsg = "";
             if (args.Length < 1) return;

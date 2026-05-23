@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Harden CI security
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        required: true
+        type: string
+
+jobs:
+  ensure-sha-pinned-actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ inputs.target }}
+      - name: Ensure all actions are pinned to a specific commit
+        uses: zgosalvez/github-actions-ensure-sha-pinned-actions@3c16e895bb662b4d7e284f032cbe8835a57773cc # v3.0.11

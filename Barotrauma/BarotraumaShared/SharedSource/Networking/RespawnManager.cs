@@ -44,7 +44,7 @@ namespace Barotrauma.Networking
         private readonly Dictionary<CharacterTeamType, List<Door>> shuttleDoors = new Dictionary<CharacterTeamType, List<Door>>();
         private readonly Dictionary<CharacterTeamType, List<ItemContainer>> respawnContainers = new Dictionary<CharacterTeamType, List<ItemContainer>>();
 
-        private class TeamSpecificState
+        public class TeamSpecificState
         {
             public readonly CharacterTeamType TeamID;
 
@@ -273,12 +273,22 @@ namespace Barotrauma.Networking
 
         partial void UpdateReturningProjSpecific(TeamSpecificState teamSpecificState, float deltaTime);
 
-        private Submarine GetShuttle(CharacterTeamType team)
+        public Submarine GetShuttle(CharacterTeamType team)
         {
             if (respawnShuttles.TryGetValue(team, out Submarine sub))
             {
                 return sub;
             }
+            return null;
+        }
+
+        public TeamSpecificState GetTeamSpecificState(CharacterTeamType team)
+        {
+            if (teamSpecificStates.TryGetValue(team, out TeamSpecificState state))
+            {
+                return state;
+            }
+
             return null;
         }
 

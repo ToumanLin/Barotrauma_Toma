@@ -95,6 +95,7 @@ namespace Barotrauma
             }
             GameMain.GameSession?.AddToGUIUpdateList();
             Character.AddAllToGUIUpdateList();
+            base.AddToGUIUpdateList();
         }
         
         public override void Draw(double deltaTime, GraphicsDevice graphics, SpriteBatch spriteBatch)

@@ -52,7 +52,7 @@ namespace Barotrauma.Networking
                 }
             }
 
-            public const int MaxPacketsPerUpdate = 10;
+            public static int MaxPacketsPerUpdate = 10;
             public float PacketsPerUpdate { get; set; } = 1.0f;
 
             public byte[] Data { get; }

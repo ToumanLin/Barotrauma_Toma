@@ -813,7 +813,9 @@ namespace Barotrauma
         private readonly List<Identifier> talentTriggers;
         private readonly List<int> giveExperiences;
         private readonly List<GiveSkill> giveSkills;
+        private readonly List<(string, ContentXElement)> luaHook;
 
+        
         private HashSet<(Character targetCharacter, AnimLoadInfo anim)> failedAnimations;
         public readonly record struct AnimLoadInfo(AnimationType Type, Either<string, ContentPath> File, float Priority, ImmutableArray<Identifier> ExpectedSpeciesNames);
         private readonly List<AnimLoadInfo> animationsToTrigger;
@@ -1253,6 +1255,11 @@ namespace Barotrauma
                     case "giveskill":
                         giveSkills ??= new List<GiveSkill>();
                         giveSkills.Add(new GiveSkill(subElement, parentDebugName));
+                        break;
+                    case "luahook":
+                    case "hook":
+                        luaHook ??= new List<(string, ContentXElement)>();
+                        luaHook.Add((subElement.GetAttributeString("name", ""), subElement));
                         break;
                     case "triggeranimation":
                         AnimationType animType = subElement.GetAttributeEnum("type", def: AnimationType.NotDefined);
@@ -1797,6 +1804,32 @@ namespace Barotrauma
                 if (lifeTimer <= 0) { return; }
             }
             if (ShouldWaitForInterval(entity, deltaTime)) { return; }
+
+            {
+                if (entity is Item item)
+                {
+                    var result = LuaCsSetup.Instance.Hook.Call<bool?>("statusEffect.apply." + item.Prefab.Identifier, this, deltaTime, entity, targets, worldPosition);
+
+                    if (result != null && result.Value) { return; }
+                }
+
+                if (entity is Character character)
+                {
+                    var result = LuaCsSetup.Instance.Hook.Call<bool?>("statusEffect.apply." + character.SpeciesName, this, deltaTime, entity, targets, worldPosition);
+
+                    if (result != null && result.Value) { return; }
+                }
+            }
+
+            if (luaHook != null)
+            {
+                foreach ((string hookName, ContentXElement element) in luaHook)
+                {
+                    var result = LuaCsSetup.Instance.Hook.Call<bool?>(hookName, this, deltaTime, entity, targets, worldPosition, element);
+
+                    if (result != null && result.Value) { return; }
+                }
+            }
 
             Item parentItem = entity as Item;
             PhysicsBody parentItemBody = parentItem?.body;

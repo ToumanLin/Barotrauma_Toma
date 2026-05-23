@@ -1,16 +1,18 @@
-﻿using Barotrauma.Networking;
+﻿using Barotrauma.Extensions;
+using Barotrauma.LuaCs.Events;
+using Barotrauma.Networking;
 using FarseerPhysics;
 using FarseerPhysics.Dynamics;
 using FarseerPhysics.Dynamics.Contacts;
 using FarseerPhysics.Dynamics.Joints;
 using Microsoft.Xna.Framework;
+using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
-using Barotrauma.Extensions;
-using LimbParams = Barotrauma.RagdollParams.LimbParams;
 using JointParams = Barotrauma.RagdollParams.JointParams;
+using LimbParams = Barotrauma.RagdollParams.LimbParams;
 
 namespace Barotrauma
 {
@@ -856,6 +858,14 @@ namespace Barotrauma
                         if (character.Submarine != null) { impactPos += character.Submarine.Position; }
 
                         float impactDamage = GetImpactDamage(impact, impactTolerance);
+
+                        float? should = null;
+                        LuaCsSetup.Instance.EventService.PublishEvent<IEventChangeFallDamage>(x => should = x.OnChangeFallDamage(impactDamage, character, impactPos, velocity) ?? should);
+
+                        if (should != null)
+						{
+                            impactDamage = should.Value;
+                        }
 
                         character.LastDamageSource = null;
                         character.AddDamage(impactPos, AfflictionPrefab.ImpactDamage.Instantiate(impactDamage).ToEnumerable(), 0.0f, true);

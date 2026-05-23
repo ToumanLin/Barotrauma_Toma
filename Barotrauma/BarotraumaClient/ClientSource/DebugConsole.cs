@@ -16,6 +16,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Barotrauma.LuaCs.Events;
 using static Barotrauma.FabricationRecipe;
 
 namespace Barotrauma
@@ -4213,11 +4214,7 @@ namespace Barotrauma
                     NewMessage("Minimum main path width: " + (Level.Loaded.LevelData?.MinMainPathWidth?.ToString() ?? "unknown"));
                 }
             });
-
-
         }
-
-
 
         private static void ReloadWearables(Character character, int variant = 0)
         {

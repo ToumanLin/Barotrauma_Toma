@@ -1,17 +1,20 @@
 ﻿using Barotrauma.Extensions;
 using Barotrauma.IO;
 using Barotrauma.Items.Components;
+using Barotrauma.LuaCs.Events;
+using Barotrauma.PerkBehaviors;
 using Barotrauma.Steam;
 using Lidgren.Network;
 using Microsoft.Xna.Framework;
+using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Xml.Linq;
-using Barotrauma.PerkBehaviors;
 
 namespace Barotrauma.Networking
 {
@@ -168,6 +171,7 @@ namespace Barotrauma.Networking
 
         public GameServer(
             string name,
+            IPAddress listenIp,
             int port,
             int queryPort,
             bool isPublic,
@@ -184,7 +188,7 @@ namespace Barotrauma.Networking
 
             LastClientListUpdateID = 0;
 
-            ServerSettings = new ServerSettings(this, name, port, queryPort, maxPlayers, isPublic, attemptUPnP);
+            ServerSettings = new ServerSettings(this, name, port, queryPort, maxPlayers, isPublic, attemptUPnP, listenIp);
             KarmaManager.SelectPreset(ServerSettings.KarmaPreset);
             ServerSettings.SetPassword(password);
             ServerSettings.SaveSettings();
@@ -436,8 +440,11 @@ namespace Barotrauma.Networking
                          (permadeathMode && (!character.IsDead || character.CauseOfDeath?.Type == CauseOfDeathType.Disconnected)));
                     if (!character.IsDead)
                     {
-                        character.KillDisconnectedTimer += deltaTime;
-                        character.SetStun(1.0f);
+                        if (!LuaCsSetup.Instance.Game.disableDisconnectCharacter)
+                        {
+                            character.KillDisconnectedTimer += deltaTime;
+                            character.SetStun(1.0f);
+                        }
 
                         float killTime = permadeathMode ? ServerSettings.DespawnDisconnectedPermadeathTime : ServerSettings.KillDisconnectedTime;
                         //owner decided to spectate -> kill the character immediately,
@@ -828,6 +835,7 @@ namespace Barotrauma.Networking
             using var _ = dosProtection.Start(connectedClient);
 
             ClientPacketHeader header = (ClientPacketHeader)inc.ReadByte();
+
             switch (header)
             {
                 case ClientPacketHeader.PING_RESPONSE:
@@ -2324,7 +2332,7 @@ namespace Barotrauma.Networking
             }
         }
 
-        private void ClientWriteLobby(Client c)
+        public void ClientWriteLobby(Client c)
         {
             bool isInitialUpdate = false;
 
@@ -3170,7 +3178,14 @@ namespace Barotrauma.Networking
             }
 
             TraitorManager.Initialize(GameMain.GameSession.EventManager, Level.Loaded);
-            TraitorManager.Enabled = Rand.Range(0.0f, 1.0f) < ServerSettings.TraitorProbability;
+            if (LuaCsSetup.Instance.Game.overrideTraitors)
+            {
+                TraitorManager.Enabled = false;
+            }
+            else
+            {
+                TraitorManager.Enabled = Rand.Range(0.0f, 1.0f) < ServerSettings.TraitorProbability;
+            }
 
             GameAnalyticsManager.AddDesignEvent("Traitors:" + (TraitorManager == null ? "Disabled" : "Enabled"));
 
@@ -3494,6 +3509,15 @@ namespace Barotrauma.Networking
                 }
                 c.RejectedName = newName;
                 return false;
+            }
+
+            bool? result = null;
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventTryClientChangeName>(x => result = x.OnTryClienChangeName(c, newName, newJob, newTeam) ?? result);
+
+            if (result != null)
+            {
+                LastClientListUpdateID++;
+                return result.Value;
             }
 
             return TryChangeClientName(c, newName, clientRenamingSelf: true);
@@ -3940,13 +3964,29 @@ namespace Barotrauma.Networking
                 senderName = null;
                 senderCharacter = null;
             }
-            else if (type == ChatMessageType.Radio)
+            else if (type == ChatMessageType.Radio && !LuaCsSetup.Instance.Game.overrideSignalRadio)
             {
                 //send to chat-linked wifi components
                 Signal s = new Signal(message, sender: senderCharacter, source: senderRadio.Item);
                 senderRadio.TransmitSignal(s, sentFromChat: true);
-            }
+            }    
+            
+            var hookChatMsg = ChatMessage.Create(senderName, message, (ChatMessageType)type, senderCharacter, senderClient, changeType);
 
+            bool shouldSkip = false;
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventModifyChatMessage>(sub =>
+            {
+                if (sub.OnModifyMessagePredicate(hookChatMsg, senderRadio) is true)
+                {
+                    shouldSkip = true;
+                }
+            });
+
+            if (shouldSkip)
+            {
+                return;
+            }
+            
             //check which clients can receive the message and apply distance effects
             foreach (Client client in ConnectedClients)
             {
@@ -3983,6 +4023,7 @@ namespace Barotrauma.Networking
                         break;
                 }
 
+
                 var chatMsg = ChatMessage.Create(
                     senderName,
                     modifiedMessage,
@@ -3990,7 +4031,7 @@ namespace Barotrauma.Networking
                     senderCharacter,
                     senderClient,
                     changeType);
-
+               
                 SendDirectChatMessage(chatMsg, client);
             }
 
@@ -4745,6 +4786,8 @@ namespace Barotrauma.Networking
         public static void Log(string line, ServerLog.MessageType messageType)
         {
             if (GameMain.Server == null || !GameMain.Server.ServerSettings.SaveServerLogs) { return; }
+
+            LuaCsSetup.Instance?.EventService.PublishEvent<IEventServerLog>(x => x.OnServerLog(line, messageType));
 
             GameMain.Server.ServerSettings.ServerLog.WriteLine(line, messageType);
 

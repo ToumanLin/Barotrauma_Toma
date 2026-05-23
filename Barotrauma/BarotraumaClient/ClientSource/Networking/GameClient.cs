@@ -1,6 +1,7 @@
 ﻿using Barotrauma.Extensions;
 using Barotrauma.IO;
 using Barotrauma.Items.Components;
+using Barotrauma.LuaCs.Events;
 using Barotrauma.Steam;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
@@ -284,7 +285,7 @@ namespace Barotrauma.Networking
 
             otherClients = new List<Client>();
 
-            ServerSettings = new ServerSettings(this, serverName, 0, 0, 0, false, false);
+            ServerSettings = new ServerSettings(this, serverName, 0, 0, 0, false, false, System.Net.IPAddress.Any);
             Voting = new Voting();
 
             serverEndpoints = endpoints;
@@ -3002,6 +3003,10 @@ namespace Barotrauma.Networking
 
         public override void AddChatMessage(ChatMessage message)
         {
+            bool? should = null;
+            LuaCsSetup.Instance.EventService.PublishEvent<IEventChatMessage>(x => should = x.OnChatMessage(message.Text, message.SenderClient, message.Type, message) ?? should);
+            if (should != null && should.Value) { return; }
+
             if (string.IsNullOrEmpty(message.Text)) { return; }
             if (message.SenderCharacter is { IsDead: false } sender)
             {

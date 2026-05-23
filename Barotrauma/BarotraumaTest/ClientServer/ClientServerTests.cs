@@ -1,6 +1,7 @@
 ﻿extern alias Client;
 extern alias Server;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -22,7 +23,7 @@ public class ClientServerTests : IDisposable
 {
     private readonly ITestOutputHelper testOutputHelper;
 
-    private readonly GameMain serverGame;
+    private readonly GameMain? serverGame;
     private GameServer? currentServer;
     private readonly string generatedPassword;
 
@@ -32,6 +33,10 @@ public class ClientServerTests : IDisposable
     {
         this.testOutputHelper = testOutputHelper;
 
+        if (!File.Exists(ContentPackageManager.VanillaFileList))
+        {
+            return;
+        }
         serverGame = new GameMain(Array.Empty<string>());
         serverGame.Init();
         var random = new Random();
@@ -41,6 +46,12 @@ public class ClientServerTests : IDisposable
     [Fact]
     public void TestLidgren()
     {
+        if (serverGame == null)
+        {
+            testOutputHelper.WriteLine("VanillaFileList not found, skipping test");
+            return;
+        }
+
         var server = CreateServer();
         var client = CreateClient(server);
         Prop.ForAll<byte[]>(data =>
@@ -93,6 +104,7 @@ public class ClientServerTests : IDisposable
 
         currentServer = new GameServer(
             name: ServerName,
+            listenIp: null,
             port: NetConfig.DefaultPort,
             queryPort: NetConfig.DefaultQueryPort,
             maxPlayers: 1,
@@ -119,7 +131,7 @@ public class ClientServerTests : IDisposable
     }
 
     private void OnTestsFinished()
-        => serverGame.CloseServer();
+        => serverGame?.CloseServer();
 
     public void Dispose()
     {

@@ -9,9 +9,9 @@ namespace Barotrauma
         public static List<GameModePreset> PresetList = new List<GameModePreset>();
 
         protected DateTime startTime;
-                
+
         protected GameModePreset preset;
-                
+
         public CrewManager CrewManager
         {
             get { return GameMain.GameSession?.CrewManager; }
@@ -57,7 +57,7 @@ namespace Barotrauma
         public virtual void ShowStartMessage() { }
 
         public virtual void AddExtraMissions(LevelData levelData) { }
-        
+
         public virtual void AddToGUIUpdateList()
         {
 #if CLIENT
