@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml.Serialization;
 using Barotrauma.Extensions;
 using Barotrauma.IO;
@@ -88,7 +89,12 @@ public class PluginManagementService : IAssemblyManagementService
 
     private ImmutableArray<MetadataReference> _baseMetadataReferences = ImmutableArray<MetadataReference>.Empty;
     private ImmutableArray<MetadataReference> _baseMetadataReferencesNonPublicized = ImmutableArray<MetadataReference>.Empty;
-    
+
+    private static readonly int
+        GC_COLLECT_WAIT_TIME = 1000,
+        GC_BACKGND_MAXITERATIONS = 2,
+        GC_BACKGND_INTERVAL_MILLIS = 500,
+        GC_BACKGND_GENERATION_WAIT_MILLIS = 100;
     
     private IEnumerable<MetadataReference> BaseMetadataReferences
     {
@@ -174,6 +180,7 @@ public class PluginManagementService : IAssemblyManagementService
         _pluginInjectorContainer?.Dispose();
         _pluginInjectorContainer = null;
         
+        ReflectionUtils.ResetCache();
         foreach (var loader in _assemblyLoaders)
         {
             try
@@ -184,14 +191,6 @@ public class PluginManagementService : IAssemblyManagementService
             catch (Exception e)
             {
                 _logger?.LogError($"Failed to dispose of {nameof(IAssemblyLoaderService)} for ContentPackage {loader.Key.Name}: \n{e.Message}");
-                if (loader.Value.Assemblies.Any())
-                {
-                    foreach (var ass in loader.Value.Assemblies)
-                    {
-                        _logger?.LogWarning($"{nameof(PluginManagementService)}: Fallback manual unsubscription of assemblies: {ass.GetName()}");
-                        ReflectionUtils.RemoveAssemblyFromCache(ass);
-                    }
-                }
             }
         }
         _assemblyLoaders.Clear();
@@ -222,6 +221,7 @@ public class PluginManagementService : IAssemblyManagementService
     private IEventService _pluginEventService;
     private Lazy<ILuaPatcher> _pluginLuaPatcherService;
     private Func<IConsoleCommandsService> _consoleCommandServiceFactory;
+    private readonly IConsoleCommandsService _internalConsoleCommandsService;
     private ILuaCsInfoProvider _luaCsInfoProvider;
     private readonly ConcurrentDictionary<ContentPackage, IAssemblyLoaderService> _assemblyLoaders = new();
     private readonly ConcurrentDictionary<Type, ContentPackage> _pluginPackageLookup = new();
@@ -251,6 +251,18 @@ public class PluginManagementService : IAssemblyManagementService
         _pluginLuaPatcherService = pluginLuaPatcherService;
         _consoleCommandServiceFactory = consoleCommandServiceFactory;
         _luaCsInfoProvider = luaCsInfoProvider;
+        _internalConsoleCommandsService = consoleCommandServiceFactory.Invoke();
+        
+        RegisterCommands(_internalConsoleCommandsService);
+    }
+
+    private void RegisterCommands(IConsoleCommandsService cmdService)
+    {
+        cmdService.RegisterCommand("plugin_forcerungc", "Forces the GC to run", cmds =>
+        {
+            _logger.LogMessage("Forcing GC run.");
+            RunGC(true);
+        });
     }
 
     private ServiceContainer CreatePluginServiceContainer()
@@ -317,11 +329,13 @@ public class PluginManagementService : IAssemblyManagementService
         }
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public bool TryGetPackageForPlugin<TPlugin>(out ContentPackage ownerPackage)
     {
         return _pluginPackageLookup.TryGetValue(typeof(TPlugin), out ownerPackage);
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public Type GetType(string typeName, bool isByRefType = false, bool includeInterfaces = false,
         bool includeDefaultContext = true)
     {
@@ -370,6 +384,7 @@ public class PluginManagementService : IAssemblyManagementService
         return null;
     }
 
+    [MethodImpl(MethodImplOptions.NoOptimization)]
     public FluentResults.Result ActivatePluginInstances(ImmutableArray<ContentPackage> executionOrder, bool excludeAlreadyRunningPackages = true)
     {
         if (executionOrder.IsDefaultOrEmpty)
@@ -488,6 +503,7 @@ public class PluginManagementService : IAssemblyManagementService
         return results;
 
         // helper
+        [MethodImpl(MethodImplOptions.NoOptimization)]
         FluentResults.Result PluginInitRunner(IAssemblyPlugin plugin, Action<IAssemblyPlugin> action)
         {
             try
@@ -502,7 +518,7 @@ public class PluginManagementService : IAssemblyManagementService
         }
     }
 
-
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public FluentResults.Result LoadAssemblyResources(ImmutableArray<IAssemblyResourceInfo> resources)
     {
         if (resources.IsDefaultOrEmpty)
@@ -705,7 +721,7 @@ public class PluginManagementService : IAssemblyManagementService
             {
                 builder.AddRange(BaseMetadataReferencesWithBarotrauma);
                 foreach (var loaderService in _assemblyLoaders
-                             .Where(asl => !asl.Key.Name.Equals("LuaCsForBarotrauma", StringComparison.InvariantCultureIgnoreCase))
+                             .Where(asl => !asl.Key.Name.Equals(LuaCsSetup.PackageName, StringComparison.InvariantCultureIgnoreCase))
                              .ToImmutableArray())
                 {
                     builder.AddRange(loaderService.Value.AssemblyReferences.Where(ar => ar is not null));
@@ -732,7 +748,7 @@ public class PluginManagementService : IAssemblyManagementService
             .Replace(" Barotrauma.Networking.Client.ClientList", " ModUtils.Client.ClientList")
             .Replace("ItemPrefab.GetItemPrefab", "ModUtils.ItemPrefab.GetItemPrefab");
     }
-
+    
     private IntPtr OnAssemblyLoaderResolvingUnmanaged(Assembly callerAssembly, string targetAssemblyName)
     {
         Guard.IsNull(callerAssembly, nameof(callerAssembly));
@@ -805,21 +821,58 @@ public class PluginManagementService : IAssemblyManagementService
         {
             _eventService?.Value?.PublishEvent<IEventAssemblyUnloading>(sub => sub.OnAssemblyUnloading(assembly));
         }
+        
+        _unloadingAssemblyLoaders.Add(loader, loader.OwnerPackage);
     }
-
+    
+    [MethodImpl(MethodImplOptions.NoOptimization)]
     public FluentResults.Result UnloadManagedAssemblies()
     {
         using var lck = _operationsLock.AcquireWriterLock().ConfigureAwait(false).GetAwaiter().GetResult();
         IService.CheckDisposed(this);
 
-        if (_assemblyLoaders.Count == 0)
-        {
-            return FluentResults.Result.Ok();
-        }
-        
         var results = new FluentResults.Result();
         
-        results.WithReasons(UnsafeDisposeManagedTypeInstances().Reasons);
+        if (!_pluginInstances.IsEmpty)
+        {
+            foreach (var instance in _pluginInstances.SelectMany(kvp => kvp.Value))
+            {
+                try
+                {
+                    instance.Dispose();
+                }
+                catch (Exception e)
+                {
+                    results.WithError(new ExceptionalError(e));
+                    continue;
+                }
+            }
+            _pluginInstances.Clear();
+        }
+        
+        if (_pluginEventService is not null)
+        {
+            _eventService.Value.RemoveDispatcherEventService(_pluginEventService);
+            try
+            {
+                _pluginEventService.Dispose();
+            }
+            catch (Exception e)
+            {
+                results.WithError(new ExceptionalError(e));
+            }
+            _pluginEventService = null;
+        }
+        
+        try
+        {
+            _pluginInjectorContainer?.Dispose();
+        }
+        catch (Exception e)
+        {
+            results.WithError(new ExceptionalError(e));
+        }
+        _pluginInjectorContainer = null;
         
         ReflectionUtils.ResetCache();
         foreach (var loaderService in _assemblyLoaders)
@@ -827,7 +880,6 @@ public class PluginManagementService : IAssemblyManagementService
             try
             {
                 loaderService.Value.Dispose();
-                _unloadingAssemblyLoaders.Add(loaderService.Value,  loaderService.Key);
             }
             catch (Exception e)
             {
@@ -837,38 +889,7 @@ public class PluginManagementService : IAssemblyManagementService
 
         _assemblyLoaders.Clear();
         _storageService.PurgeCache();
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, true);
-
-#if DEBUG
-        // Print still loaded assembly load ctx after giving some time
-        CoroutineManager.Invoke(() =>
-        {
-            if (!_unloadingAssemblyLoaders.Any())
-            {
-                return;
-            }
-            
-            StringBuilder sb = new StringBuilder();
-
-            sb.AppendLine("The following ContentPackages have not unloaded their assemblies:");
-            
-            foreach (var kvp in _unloadingAssemblyLoaders.ToImmutableArray())
-            {
-                sb.AppendLine($"- '{kvp.Value.Name}'");
-            }
-            
-            
-            // Use DebugConsole in case logger is null by the time this executes.
-            if (_logger is null)
-            {
-                DebugConsole.LogError(sb.ToString());
-            }
-            else
-            {
-                _logger.LogWarning(sb.ToString());
-            }
-        }, 3.0f);
-#endif
+        _pluginPackageLookup.Clear();
         
         // clear native libraries
         if (_loadedNativeLibraries.Any())
@@ -888,41 +909,80 @@ public class PluginManagementService : IAssemblyManagementService
             
             _loadedNativeLibraries.Clear();
         }
+
+        RunGC(false);   // Immediate, Blocking GC
+        Task.Factory.StartNew(RunBackgroundGC); // Non-blocking background GC
         
         return results;
     }
-
-    private FluentResults.Result UnsafeDisposeManagedTypeInstances()
+    
+    private async Task RunBackgroundGC()
     {
-        var results = new FluentResults.Result();
-        
-        if (!_pluginInstances.IsEmpty)
+        // must be lock-free and thus cannot reference class members.
+        await Task.Delay(GC_BACKGND_INTERVAL_MILLIS);
+        GC.RegisterForFullGCNotification(1, 10);
+        for (int i = 0; i < GC_BACKGND_MAXITERATIONS; i++)
         {
-            foreach (var instance in _pluginInstances.SelectMany(kvp => kvp.Value))
+            int maxGen = GC.MaxGeneration;
+            for (int gcGen = 0; gcGen < maxGen; gcGen++)
             {
-                try
-                {
-                    instance.Dispose();
-                }
-                catch (Exception e)
-                {
-                    results.WithError(new ExceptionalError(e));
-                    continue;
-                }
+                GC.Collect(maxGen, GCCollectionMode.Forced, false, false); // mark objects, run finalizers, promote generation
+                GC.WaitForFullGCComplete(GC_COLLECT_WAIT_TIME);
+                GC.Collect(maxGen, GCCollectionMode.Forced, false, true); // free mem
+                GC.WaitForFullGCComplete(GC_COLLECT_WAIT_TIME);
+                await Task.Delay(GC_BACKGND_GENERATION_WAIT_MILLIS);
+            }
+            await Task.Delay(GC_BACKGND_INTERVAL_MILLIS);
+        }
+        GC.CancelFullGCNotification();
+    }
+
+    private void RunGC(bool logResults)
+    {
+        int maxGen = GC.MaxGeneration;
+        GC.RegisterForFullGCNotification(maxGen, 10);
+        for (int gcGen = 0; gcGen < maxGen; gcGen++)
+        {
+            GC.Collect(maxGen, GCCollectionMode.Aggressive, true, true);
+            var confirmationToken = GC.WaitForFullGCComplete(GC_COLLECT_WAIT_TIME);
+            if (logResults)
+            {
+                _logger.LogWarning($"GC Pass # {gcGen} completed. Completion status: {confirmationToken.ToString()}");
             }
         }
+        GC.CancelFullGCNotification();
         
-        if (_pluginEventService is not null)
+        // Print still loaded assembly load ctx after giving some time
+        if (logResults)
         {
-            _eventService.Value.RemoveDispatcherEventService(_pluginEventService);
-            _pluginEventService = null;
+            CoroutineManager.Invoke(() =>
+            {
+                if (!_unloadingAssemblyLoaders.Any())
+                {
+                    return;
+                }
+            
+                StringBuilder sb = new StringBuilder();
+
+                sb.AppendLine("The following ContentPackages have not unloaded their assemblies:");
+            
+                foreach (var kvp in _unloadingAssemblyLoaders.ToImmutableArray())
+                {
+                    sb.AppendLine($"- '{kvp.Value.Name}'");
+                }
+            
+            
+                // Use DebugConsole in case logger is null by the time this executes.
+                if (_logger is null)
+                {
+                    DebugConsole.LogError(sb.ToString());
+                }
+                else
+                {
+                    _logger.LogWarning(sb.ToString());
+                }
+            }, GC.MaxGeneration * GC_COLLECT_WAIT_TIME/1000f);
         }
-        _pluginInjectorContainer = null;
-        
-        _pluginInstances.Clear();
-        _pluginPackageLookup.Clear();
-        
-        return results;
     }
 
     public Result<Assembly> GetLoadedAssembly(OneOf<AssemblyName, string> assemblyName, in Guid[] excludedContexts)
