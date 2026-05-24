@@ -23,7 +23,7 @@ public sealed partial class CharacterViewerPlugin
         public string Subtitle;
         public Sprite Sprite;
         public Rectangle SourceRect;
-        public Vector2 Origin;
+        public Vector2 RelativeOrigin;
         public float Scale = 1.0f;
         public bool InheritSourceRect;
         public bool InheritOrigin;
@@ -38,7 +38,7 @@ public sealed partial class CharacterViewerPlugin
                 ("[file]", Path.GetFileName(FilePath)),
                 ("[rect]", $"{SourceRect.X}, {SourceRect.Y}, {SourceRect.Width}, {SourceRect.Height}"),
                 ("[inheritedrect]", InheritSourceRect ? Text("suffix.inherited", " (inherited)").Value : string.Empty),
-                ("[origin]", $"{Origin.X:0.##}, {Origin.Y:0.##}"),
+                ("[origin]", $"{RelativeOrigin.X:0.####}, {RelativeOrigin.Y:0.####}"),
                 ("[inheritedorigin]", InheritOrigin ? Text("suffix.inherited", " (inherited)").Value : string.Empty),
                 ("[scale]", $"{Scale:0.###}")).Value;
     }
@@ -254,7 +254,7 @@ public sealed partial class CharacterViewerPlugin
             Subtitle = subtitle,
             Sprite = sprite,
             SourceRect = sprite.SourceRect,
-            Origin = sprite.Origin,
+            RelativeOrigin = sprite.RelativeOrigin,
             Scale = scale,
             FilePath = sprite.FilePath.Value
         };
@@ -439,7 +439,7 @@ public sealed partial class CharacterViewerPlugin
 
         if (wearableSprite.InheritOrigin)
         {
-            entry.Origin = activeSprite.Origin;
+            entry.RelativeOrigin = activeSprite.RelativeOrigin;
         }
     }
 }
