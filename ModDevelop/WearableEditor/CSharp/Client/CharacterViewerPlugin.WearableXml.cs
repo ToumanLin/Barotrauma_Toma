@@ -30,7 +30,7 @@ public sealed partial class CharacterViewerPlugin
             XDocument document = GetWritableWearableDocument(spriteElement, path);
             if (document == null)
             {
-                new GUIMessageBox("Wearable Editor", "Could not find the XML document for this wearable.");
+                new GUIMessageBox(Text("window.wearableeditor", "Wearable Editor"), Text("message.xmlnotfound", "Could not find the XML document for this wearable."));
                 return;
             }
 
@@ -43,21 +43,21 @@ public sealed partial class CharacterViewerPlugin
             {
                 document.Save(writer);
             }
-            GUI.AddMessage($"Wearable XML saved to {path}", GUIStyle.Green, font: GUIStyle.Font, lifeTime: 5);
+            GUI.AddMessage(TextWithVariables("message.xmlsaved", "Wearable XML saved to [path]", ("[path]", path)), GUIStyle.Green, font: GUIStyle.Font, lifeTime: 5);
         }
         catch (Exception ex)
         {
             LuaCsLogger.LogError($"CharacterViewer failed to save wearable XML: {ex}");
-            new GUIMessageBox("Wearable Editor", $"Failed to save XML.\n\n{ex.Message}");
+            new GUIMessageBox(Text("window.wearableeditor", "Wearable Editor"), TextWithVariables("message.xmlsavefailed", "Failed to save XML.\\n\\n[error]", ("[error]", ex.Message)));
         }
     }
 
     private void ShowNonLocalSaveWarning(ContentXElement spriteElement, string path)
     {
         var messageBox = new GUIMessageBox(
-            "Wearable Editor",
-            $"Only XML files in LocalMods can be saved by default.\n\n{path}\n\nSaving anyway may change a workshop mod file or Vanilla item. Steam can overwrite it.",
-            new LocalizedString[] { "Cancel", "Just save it" },
+            Text("window.wearableeditor", "Wearable Editor"),
+            TextWithVariables("warning.nonlocalsave", "Only XML files in LocalMods can be saved by default.\\n\\n[path]\\n\\nSaving anyway may change a workshop mod file or Vanilla item. Steam can overwrite it.", ("[path]", path)),
+            new LocalizedString[] { Text("button.cancel", "Cancel"), Text("button.justsaveit", "Just save it") },
             type: GUIMessageBox.Type.Warning);
         messageBox.Buttons[0].OnClicked = (_, _) =>
         {
@@ -211,7 +211,7 @@ public sealed partial class CharacterViewerPlugin
         }
 
         pastedElement.SetAttributeValue("texture", resolvedPath);
-        new GUIMessageBox("Wearable Editor", $"Pasted sprite texture could not be matched to a content package, so an absolute path was used.\n\n{resolvedPath}");
+        new GUIMessageBox(Text("window.wearableeditor", "Wearable Editor"), TextWithVariables("message.pastedtextureabsolutepath", "Pasted sprite texture could not be matched to a content package, so an absolute path was used.\\n\\n[path]", ("[path]", resolvedPath)));
     }
 
     private static bool TryResolveTexturePath(string texture, ContentPackage sourcePackage, string sourceXmlPath, out string resolvedPath)
@@ -285,7 +285,7 @@ public sealed partial class CharacterViewerPlugin
         {
             if (showWarning)
             {
-                new GUIMessageBox("Wearable Editor", "No wearable XML file is selected.");
+                new GUIMessageBox(Text("window.wearableeditor", "Wearable Editor"), Text("message.nowearablexmlselected", "No wearable XML file is selected."));
             }
             return false;
         }

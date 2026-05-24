@@ -31,28 +31,37 @@ public sealed partial class CharacterViewerPlugin
         public ContentXElement SourceElement;
 
         public string Tooltip =>
-            $"{Title}\nFile: {Path.GetFileName(FilePath)}\nRect: {SourceRect.X}, {SourceRect.Y}, {SourceRect.Width}, {SourceRect.Height}{(InheritSourceRect ? " (inherited)" : string.Empty)}\nOrigin: {Origin.X:0.##}, {Origin.Y:0.##}{(InheritOrigin ? " (inherited)" : string.Empty)}\nScale: {Scale:0.###}";
+            TextWithVariables(
+                "tooltip.spriteentry",
+                "[title]\\nFile: [file]\\nRect: [rect][inheritedrect]\\nOrigin: [origin][inheritedorigin]\\nScale: [scale]",
+                ("[title]", Title),
+                ("[file]", Path.GetFileName(FilePath)),
+                ("[rect]", $"{SourceRect.X}, {SourceRect.Y}, {SourceRect.Width}, {SourceRect.Height}"),
+                ("[inheritedrect]", InheritSourceRect ? Text("suffix.inherited", " (inherited)").Value : string.Empty),
+                ("[origin]", $"{Origin.X:0.##}, {Origin.Y:0.##}"),
+                ("[inheritedorigin]", InheritOrigin ? Text("suffix.inherited", " (inherited)").Value : string.Empty),
+                ("[scale]", $"{Scale:0.###}")).Value;
     }
 
     private void CreateBodySpriteWindow()
     {
         GUILayoutGroup content = CreateFloatingWindow(WindowTitleBodySprite, new Point(470, 380), new Point(300, 275), out bodySpriteWindow);
-        bodySpriteInfoList = CreateSpritePreviewPanel(content, "Body Sprites", bodySpritePreviewZoom, value => bodySpritePreviewZoom = value);
+        bodySpriteInfoList = CreateSpritePreviewPanel(content, Text("spritepanel.bodysprites", "Body Sprites"), bodySpritePreviewZoom, value => bodySpritePreviewZoom = value);
     }
 
     private void CreateHeadSpriteWindow()
     {
         GUILayoutGroup content = CreateFloatingWindow(WindowTitleHeadSprite, new Point(470, 380), new Point(300, 305), out headSpriteWindow);
-        headSpriteInfoList = CreateSpritePreviewPanel(content, "Head Sprites", headSpritePreviewZoom, value => headSpritePreviewZoom = value);
+        headSpriteInfoList = CreateSpritePreviewPanel(content, Text("spritepanel.headsprites", "Head Sprites"), headSpritePreviewZoom, value => headSpritePreviewZoom = value);
     }
 
     private void CreateClothingSpriteWindow()
     {
         GUILayoutGroup content = CreateFloatingWindow(WindowTitleClothingSprite, new Point(470, 400), new Point(300, 335), out clothingSpriteWindow);
-        clothingSpriteInfoList = CreateSpritePreviewPanel(content, "Clothing Sprites", clothingSpritePreviewZoom, value => clothingSpritePreviewZoom = value);
+        clothingSpriteInfoList = CreateSpritePreviewPanel(content, Text("spritepanel.clothingsprites", "Clothing Sprites"), clothingSpritePreviewZoom, value => clothingSpritePreviewZoom = value);
     }
 
-    private GUIListBox CreateSpritePreviewPanel(GUILayoutGroup content, string label, float zoom, Action<float> setZoom)
+    private GUIListBox CreateSpritePreviewPanel(GUILayoutGroup content, LocalizedString label, float zoom, Action<float> setZoom)
     {
         var panel = new GUIFrame(new RectTransform(Vector2.One, content.RectTransform), style: null);
         panel.RectTransform.MinSize = new Point(0, GUI.IntScale(334));
@@ -69,7 +78,7 @@ public sealed partial class CharacterViewerPlugin
         }, style: null);
         var zoomLabel = new GUITextBlock(
             new RectTransform(new Vector2(0.22f, 1.0f), zoomRow.RectTransform, Anchor.CenterLeft),
-            $"Zoom: {(int)(zoom * 100)}%",
+            FormatZoomText(zoom),
             font: GUIStyle.SmallFont,
             textAlignment: Alignment.CenterLeft)
         {
@@ -92,7 +101,7 @@ public sealed partial class CharacterViewerPlugin
         {
             float newZoom = scrollBar.BarScrollValue;
             setZoom(newZoom);
-            zoomLabel.Text = $"Zoom: {(int)(newZoom * 100)}%";
+            zoomLabel.Text = FormatZoomText(newZoom);
             UpdateAllViewerSpriteInfo();
             return true;
         };
@@ -150,6 +159,11 @@ public sealed partial class CharacterViewerPlugin
         return list;
     }
 
+    private static LocalizedString FormatZoomText(float zoom)
+    {
+        return TextWithVariables("label.zoom", "Zoom: [percent]%", ("[percent]", ((int)(zoom * 100)).ToString()));
+    }
+
     private void UpdateAllViewerSpriteInfo()
     {
         UpdateBodySpriteInfo();
@@ -168,7 +182,7 @@ public sealed partial class CharacterViewerPlugin
             if (limb?.ActiveSprite == null || limb.type == LimbType.Head) { continue; }
             entries.Add(CreateSpriteEntry(limb.type.ToString(), string.Empty, limb.ActiveSprite));
         }
-        PopulateSpritePreviewList(bodySpriteInfoList, entries, bodySpritePreviewZoom, "No body sprites available.");
+        PopulateSpritePreviewList(bodySpriteInfoList, entries, bodySpritePreviewZoom, Text("message.nobodysprites", "No body sprites available.").Value);
     }
 
     private void UpdateHeadSpriteInfo()
@@ -179,7 +193,7 @@ public sealed partial class CharacterViewerPlugin
         Character character = CurrentCharacter;
         if (character?.Info?.HeadSprite != null)
         {
-            entries.Add(CreateSpriteEntry("Head", $"tags {string.Join(", ", character.Info.Head.Preset.TagSet.Select(static tag => tag.Value))}", character.Info.HeadSprite));
+            entries.Add(CreateSpriteEntry(Text("spriteentry.head", "Head").Value, TextWithVariables("spriteentry.tags", "tags [tags]", ("[tags]", string.Join(", ", character.Info.Head.Preset.TagSet.Select(static tag => tag.Value)))).Value, character.Info.HeadSprite));
         }
 
         Limb head = character?.AnimController?.GetLimb(LimbType.Head);
@@ -187,11 +201,11 @@ public sealed partial class CharacterViewerPlugin
         {
             foreach (WearableSprite wearableSprite in head.OtherWearables.Where(static w => w?.Sprite != null))
             {
-                entries.Add(CreateSpriteEntry($"{wearableSprite.Type} / Head", wearableSprite.Limb.ToString(), wearableSprite, head, character));
+                entries.Add(CreateSpriteEntry($"{wearableSprite.Type} / {Text("spriteentry.head", "Head").Value}", wearableSprite.Limb.ToString(), wearableSprite, head, character));
             }
         }
 
-        PopulateSpritePreviewList(headSpriteInfoList, entries, headSpritePreviewZoom, "No head sprites available.");
+        PopulateSpritePreviewList(headSpriteInfoList, entries, headSpritePreviewZoom, Text("message.noheadsprites", "No head sprites available.").Value);
     }
 
     private void UpdateClothingSpriteInfo()
@@ -201,7 +215,7 @@ public sealed partial class CharacterViewerPlugin
             clothingSpriteInfoList,
             GetSelectedClothingSpriteEntries(),
             clothingSpritePreviewZoom,
-            selectedClothingPrefab == null ? NoClothingSelectedText : "Selected clothing has no visible sprites.");
+            selectedClothingPrefab == null ? Text("message.noclothingselected", NoClothingSelectedText).Value : Text("message.novisiblesprites", "Selected clothing has no visible sprites.").Value);
     }
 
     private List<ViewerSpriteEntry> GetSelectedClothingSpriteEntries()

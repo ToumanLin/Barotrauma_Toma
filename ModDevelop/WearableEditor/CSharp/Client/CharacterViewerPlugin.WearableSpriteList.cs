@@ -36,7 +36,7 @@ public sealed partial class CharacterViewerPlugin
         List<WearableSpriteSelection> entries = GetWearableSpriteSelections();
         if (entries.Count == 0)
         {
-            CreateEditorMessage(wearableSpriteListBox, selectedClothingPrefab == null ? NoClothingSelectedText : "Selected clothing has no sprite entries.");
+            CreateEditorMessage(wearableSpriteListBox, selectedClothingPrefab == null ? Text("message.noclothingselected", NoClothingSelectedText) : Text("message.nospriteentries", "Selected clothing has no sprite entries."));
             RefreshWearableSpriteListActionState();
             RefreshListScrollBar(wearableSpriteListBox);
             return;
@@ -81,9 +81,9 @@ public sealed partial class CharacterViewerPlugin
             RelativeSpacing = 0.02f
         };
 
-        copyWearableSpriteButton = CreateEditorButton(row, "Copy", CopySelectedWearableSprite);
-        pasteWearableSpriteButton = CreateEditorButton(row, "Paste", PasteCopiedWearableSprite);
-        deleteWearableSpriteButton = CreateEditorButton(row, "Delete", ConfirmDeleteSelectedWearableSprite);
+        copyWearableSpriteButton = CreateEditorButton(row, Text("button.copy", "Copy"), CopySelectedWearableSprite);
+        pasteWearableSpriteButton = CreateEditorButton(row, Text("button.paste", "Paste"), PasteCopiedWearableSprite);
+        deleteWearableSpriteButton = CreateEditorButton(row, Text("button.delete", "Delete"), ConfirmDeleteSelectedWearableSprite);
     }
 
     private void RefreshWearableSpriteListActionState()
@@ -120,7 +120,7 @@ public sealed partial class CharacterViewerPlugin
             SourcePackage = sourceElement.ContentPackage ?? selectedClothingPrefab?.ContentPackage
         };
         QueueWearableSpriteListRebuild();
-        GUI.AddMessage("Wearable sprite copied.", GUIStyle.Green, font: GUIStyle.Font, lifeTime: 3);
+        GUI.AddMessage(Text("message.spritecopied", "Wearable sprite copied."), GUIStyle.Green, font: GUIStyle.Font, lifeTime: 3);
     }
 
     private void PasteCopiedWearableSprite()
@@ -137,7 +137,7 @@ public sealed partial class CharacterViewerPlugin
         QueueWearableEditorRebuild();
         QueueWearableSpriteListRebuild();
         UpdateAllViewerSpriteInfo();
-        GUI.AddMessage("Wearable sprite pasted.", GUIStyle.Green, font: GUIStyle.Font, lifeTime: 3);
+        GUI.AddMessage(Text("message.spritepasted", "Wearable sprite pasted."), GUIStyle.Green, font: GUIStyle.Font, lifeTime: 3);
     }
 
     private void ConfirmDeleteSelectedWearableSprite()
@@ -147,8 +147,12 @@ public sealed partial class CharacterViewerPlugin
         if (element == null) { return; }
 
         string name = element.GetAttributeString("name", "");
-        string label = string.IsNullOrWhiteSpace(name) ? element.GetAttributeString("limb", "selected sprite") : name;
-        var messageBox = new GUIMessageBox("Delete Wearable Sprite", $"Delete sprite entry \"{label}\"?\n\nThis changes the editor state only. Use Save to write it to XML.", new LocalizedString[] { "Cancel", "Delete" }, type: GUIMessageBox.Type.Warning);
+        string label = string.IsNullOrWhiteSpace(name) ? element.GetAttributeString("limb", Text("value.selectedsprite", "selected sprite").Value) : name;
+        var messageBox = new GUIMessageBox(
+            Text("messagebox.deletewearablesprite.title", "Delete Wearable Sprite"),
+            TextWithVariables("messagebox.deletewearablesprite.body", "Delete sprite entry \"[label]\"?\\n\\nThis changes the editor state only. Use Save to write it to XML.", ("[label]", label)),
+            new LocalizedString[] { Text("button.cancel", "Cancel"), Text("button.delete", "Delete") },
+            type: GUIMessageBox.Type.Warning);
         messageBox.Buttons[0].OnClicked = (_, _) =>
         {
             messageBox.Close();
@@ -178,7 +182,7 @@ public sealed partial class CharacterViewerPlugin
         QueueWearableEditorRebuild();
         QueueWearableSpriteListRebuild();
         UpdateAllViewerSpriteInfo();
-        GUI.AddMessage("Wearable sprite deleted. Use Save to write the XML.", GUIStyle.Orange, font: GUIStyle.Font, lifeTime: 5);
+        GUI.AddMessage(Text("message.spritedeleted", "Wearable sprite deleted. Use Save to write the XML."), GUIStyle.Orange, font: GUIStyle.Font, lifeTime: 5);
     }
 
     private bool TryGetSelectedWearableParent(out ContentXElement wearableParent)
@@ -186,7 +190,7 @@ public sealed partial class CharacterViewerPlugin
         wearableParent = selectedClothingPrefab?.ConfigElement?.GetChildElement("Wearable");
         if (wearableParent != null) { return true; }
 
-        new GUIMessageBox("Wearable Editor", "Selected clothing has no Wearable element to paste into.");
+        new GUIMessageBox(Text("window.wearableeditor", "Wearable Editor"), Text("message.nowearableparent", "Selected clothing has no Wearable element to paste into."));
         return false;
     }
 

@@ -30,7 +30,7 @@ public sealed partial class CharacterViewerPlugin
             return;
         }
 
-        var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), "IN-GAME BEHAVIOR [H]")
+        var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), Text("toggle.ingamebehavior", "IN-GAME BEHAVIOR [H]"))
         {
             UserData = InGameBehaviorToggleUserData,
             Selected = inGameBehaviorEnabled,

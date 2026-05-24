@@ -1,4 +1,103 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <infotexts language="Traditional Chinese" nowhitespace="true" translatedname="中文（繁體）">
-
+  <wearableeditor.button.apply>套用</wearableeditor.button.apply>
+  <wearableeditor.button.cancel>取消</wearableeditor.button.cancel>
+  <wearableeditor.button.copy>複製</wearableeditor.button.copy>
+  <wearableeditor.button.default>預設</wearableeditor.button.default>
+  <wearableeditor.button.delete>刪除</wearableeditor.button.delete>
+  <wearableeditor.button.justsaveit>仍然儲存</wearableeditor.button.justsaveit>
+  <wearableeditor.button.modmanager>模組管理器</wearableeditor.button.modmanager>
+  <wearableeditor.button.next>下一個</wearableeditor.button.next>
+  <wearableeditor.button.paste>貼上</wearableeditor.button.paste>
+  <wearableeditor.button.prev>上一個</wearableeditor.button.prev>
+  <wearableeditor.button.reload>重新載入</wearableeditor.button.reload>
+  <wearableeditor.button.remove>移除</wearableeditor.button.remove>
+  <wearableeditor.button.revert>還原</wearableeditor.button.revert>
+  <wearableeditor.button.save>儲存</wearableeditor.button.save>
+  <wearableeditor.dropdown.nomatchingwearables>沒有符合的可穿戴物品</wearableeditor.dropdown.nomatchingwearables>
+  <wearableeditor.dropdown.selectclothing>選擇服裝</wearableeditor.dropdown.selectclothing>
+  <wearableeditor.field.alphaclipotherwearables>透明裁剪其他可穿戴物 (alphaclipotherwearables)</wearableeditor.field.alphaclipotherwearables>
+  <wearableeditor.field.canbehiddenbyitem>可被物品隱藏 (canbehiddenbyitem)</wearableeditor.field.canbehiddenbyitem>
+  <wearableeditor.field.canbehiddenbyotherwearables>可被其他可穿戴物隱藏 (canbehiddenbyotherwearables)</wearableeditor.field.canbehiddenbyotherwearables>
+  <wearableeditor.field.compress>壓縮 (compress)</wearableeditor.field.compress>
+  <wearableeditor.field.depth>深度 (depth)</wearableeditor.field.depth>
+  <wearableeditor.field.depthlimb>深度肢體 (depthlimb)</wearableeditor.field.depthlimb>
+  <wearableeditor.field.hidelimb>隱藏肢體 (hidelimb)</wearableeditor.field.hidelimb>
+  <wearableeditor.field.hideotherwearables>隱藏其他可穿戴物 (hideotherwearables)</wearableeditor.field.hideotherwearables>
+  <wearableeditor.field.hidewearablesoftype>隱藏指定類型可穿戴物 (hidewearablesoftype)</wearableeditor.field.hidewearablesoftype>
+  <wearableeditor.field.ignorelimbscale>忽略肢體縮放 (ignorelimbscale)</wearableeditor.field.ignorelimbscale>
+  <wearableeditor.field.ignoreragdollscale>忽略布娃娃縮放 (ignoreragdollscale)</wearableeditor.field.ignoreragdollscale>
+  <wearableeditor.field.ignoretexturescale>忽略貼圖縮放 (ignoretexturescale)</wearableeditor.field.ignoretexturescale>
+  <wearableeditor.field.inheritlimbdepth>繼承肢體深度 (inheritlimbdepth)</wearableeditor.field.inheritlimbdepth>
+  <wearableeditor.field.inheritorigin>繼承原點 (inheritorigin)</wearableeditor.field.inheritorigin>
+  <wearableeditor.field.inheritscale>繼承縮放 (inheritscale)</wearableeditor.field.inheritscale>
+  <wearableeditor.field.inheritsourcerect>繼承來源矩形 (inheritsourcerect)</wearableeditor.field.inheritsourcerect>
+  <wearableeditor.field.limb>肢體 (limb)</wearableeditor.field.limb>
+  <wearableeditor.field.name>名稱 (name)</wearableeditor.field.name>
+  <wearableeditor.field.origin>原點 (origin)</wearableeditor.field.origin>
+  <wearableeditor.field.rotation>旋轉 (rotation)</wearableeditor.field.rotation>
+  <wearableeditor.field.scale>縮放 (scale)</wearableeditor.field.scale>
+  <wearableeditor.field.sheetelementsize>表格元素大小 (sheetelementsize)</wearableeditor.field.sheetelementsize>
+  <wearableeditor.field.sheetindex>表格索引 (sheetindex)</wearableeditor.field.sheetindex>
+  <wearableeditor.field.size>大小 (size)</wearableeditor.field.size>
+  <wearableeditor.field.sound>聲音 (sound)</wearableeditor.field.sound>
+  <wearableeditor.field.sourcerect>來源矩形 (sourcerect)</wearableeditor.field.sourcerect>
+  <wearableeditor.field.texture>貼圖 (texture)</wearableeditor.field.texture>
+  <wearableeditor.format.indexnone>[index]：無</wearableeditor.format.indexnone>
+  <wearableeditor.info.clothing>名稱：[name]\n識別碼：[identifier]\n可穿戴精靈：[count]\nXML：[xml]</wearableeditor.info.clothing>
+  <wearableeditor.label.beard>鬍鬚</wearableeditor.label.beard>
+  <wearableeditor.label.face>臉部</wearableeditor.label.face>
+  <wearableeditor.label.gender>性別</wearableeditor.label.gender>
+  <wearableeditor.label.hair>頭髮</wearableeditor.label.hair>
+  <wearableeditor.label.head>頭部</wearableeditor.label.head>
+  <wearableeditor.label.moustache>小鬍子</wearableeditor.label.moustache>
+  <wearableeditor.label.xmlcode>XML 程式碼：\n[xml]</wearableeditor.label.xmlcode>
+  <wearableeditor.label.zoom>縮放：[percent]%</wearableeditor.label.zoom>
+  <wearableeditor.message.couldnotequip>無法將所選物品裝備到任何允許的欄位。</wearableeditor.message.couldnotequip>
+  <wearableeditor.message.failedtoequip>裝備所選服裝失敗。詳情請查看主控台。</wearableeditor.message.failedtoequip>
+  <wearableeditor.message.nobodysprites>沒有可用的身體精靈。</wearableeditor.message.nobodysprites>
+  <wearableeditor.message.nocharacterinfo>沒有可用的 CharacterInfo。</wearableeditor.message.nocharacterinfo>
+  <wearableeditor.message.nocharacterinventory>沒有可用的角色物品欄。</wearableeditor.message.nocharacterinventory>
+  <wearableeditor.message.noclothingselected>未選擇服裝。</wearableeditor.message.noclothingselected>
+  <wearableeditor.message.noequippedspriteentries>所選服裝沒有已裝備的精靈項目。</wearableeditor.message.noequippedspriteentries>
+  <wearableeditor.message.noheadsprites>沒有可用的頭部精靈。</wearableeditor.message.noheadsprites>
+  <wearableeditor.message.nopickablecomponent>所選物品沒有 Pickable 元件。</wearableeditor.message.nopickablecomponent>
+  <wearableeditor.message.nospriteentries>所選服裝沒有精靈項目。</wearableeditor.message.nospriteentries>
+  <wearableeditor.message.novisiblesprites>所選服裝沒有可見精靈。</wearableeditor.message.novisiblesprites>
+  <wearableeditor.message.nowearablecomponent>所選物品沒有 Wearable 元件。</wearableeditor.message.nowearablecomponent>
+  <wearableeditor.message.nowearableparent>所選服裝沒有可供貼上的 Wearable 元素。</wearableeditor.message.nowearableparent>
+  <wearableeditor.message.nowearablexmlselected>未選擇可穿戴 XML 檔案。</wearableeditor.message.nowearablexmlselected>
+  <wearableeditor.message.pastedtextureabsolutepath>無法將貼上的精靈貼圖匹配到內容包，因此使用了絕對路徑。\n\n[path]</wearableeditor.message.pastedtextureabsolutepath>
+  <wearableeditor.message.spritecopied>已複製可穿戴精靈。</wearableeditor.message.spritecopied>
+  <wearableeditor.message.spritedeleted>已刪除可穿戴精靈。使用「儲存」寫入 XML。</wearableeditor.message.spritedeleted>
+  <wearableeditor.message.spritepasted>已貼上可穿戴精靈。</wearableeditor.message.spritepasted>
+  <wearableeditor.message.xmlnotfound>找不到此可穿戴項目的 XML 文件。</wearableeditor.message.xmlnotfound>
+  <wearableeditor.message.xmlsaved>可穿戴 XML 已儲存到 [path]</wearableeditor.message.xmlsaved>
+  <wearableeditor.message.xmlsavefailed>儲存 XML 失敗。\n\n[error]</wearableeditor.message.xmlsavefailed>
+  <wearableeditor.messagebox.deletewearablesprite.body>刪除精靈項目「[label]」？\n\n這只會變更編輯器狀態。使用「儲存」寫入 XML。</wearableeditor.messagebox.deletewearablesprite.body>
+  <wearableeditor.messagebox.deletewearablesprite.title>刪除可穿戴精靈</wearableeditor.messagebox.deletewearablesprite.title>
+  <wearableeditor.message.nestednodes>巢狀節點：LightComponent [[lightcount]]  override [[overridecount]]\n巢狀節點編輯：規劃中</wearableeditor.message.nestednodes>
+  <wearableeditor.spriteentry.head>頭部</wearableeditor.spriteentry.head>
+  <wearableeditor.spriteentry.tags>標籤 [tags]</wearableeditor.spriteentry.tags>
+  <wearableeditor.spritepanel.bodysprites>身體精靈</wearableeditor.spritepanel.bodysprites>
+  <wearableeditor.spritepanel.clothingsprites>服裝精靈</wearableeditor.spritepanel.clothingsprites>
+  <wearableeditor.spritepanel.headsprites>頭部精靈</wearableeditor.spritepanel.headsprites>
+  <wearableeditor.status.equippedforpreview>已裝備用於預覽。</wearableeditor.status.equippedforpreview>
+  <wearableeditor.suffix.inherited>（繼承）</wearableeditor.suffix.inherited>
+  <wearableeditor.toggle.ingamebehavior>遊戲內行為 [H]</wearableeditor.toggle.ingamebehavior>
+  <wearableeditor.toggle.wearableeditor>可穿戴編輯器 [7]</wearableeditor.toggle.wearableeditor>
+  <wearableeditor.toggle.wearableviewer>可穿戴檢視器 [6]</wearableeditor.toggle.wearableviewer>
+  <wearableeditor.tooltip.resize>調整大小</wearableeditor.tooltip.resize>
+  <wearableeditor.tooltip.spriteentry>[title]\n檔案：[file]\n矩形：[rect][inheritedrect]\n原點：[origin][inheritedorigin]\n縮放：[scale]</wearableeditor.tooltip.spriteentry>
+  <wearableeditor.value.default>預設</wearableeditor.value.default>
+  <wearableeditor.value.none>無</wearableeditor.value.none>
+  <wearableeditor.value.selectedsprite>所選精靈</wearableeditor.value.selectedsprite>
+  <wearableeditor.warning.nonlocalsave>預設只能儲存 LocalMods 內的 XML 檔案。\n\n[path]\n\n仍然儲存可能會修改工作坊模組檔案或原版物品。Steam 可能會覆蓋它。</wearableeditor.warning.nonlocalsave>
+  <wearableeditor.window.bodysprite>身體精靈</wearableeditor.window.bodysprite>
+  <wearableeditor.window.characterviewer>角色檢視器</wearableeditor.window.characterviewer>
+  <wearableeditor.window.clothingmanager>服裝管理器</wearableeditor.window.clothingmanager>
+  <wearableeditor.window.clothingsprite>服裝精靈</wearableeditor.window.clothingsprite>
+  <wearableeditor.window.headsprite>頭部精靈</wearableeditor.window.headsprite>
+  <wearableeditor.window.wearableeditor>可穿戴編輯器</wearableeditor.window.wearableeditor>
+  <wearableeditor.window.wearablespritelist>可穿戴精靈列表</wearableeditor.window.wearablespritelist>
 </infotexts>

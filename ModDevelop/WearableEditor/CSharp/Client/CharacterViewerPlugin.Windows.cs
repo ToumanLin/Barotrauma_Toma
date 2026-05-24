@@ -228,7 +228,7 @@ public sealed partial class CharacterViewerPlugin
             MinSize = new Point(0, GUI.IntScale(38)),
             MaxSize = new Point(int.MaxValue, GUI.IntScale(38))
         }, style: "GUIFrameListBox");
-        new GUITextBlock(new RectTransform(new Vector2(0.94f, 1.0f), header.RectTransform, Anchor.CenterLeft), title, font: GUIStyle.SubHeadingFont, textAlignment: Alignment.CenterLeft)
+        new GUITextBlock(new RectTransform(new Vector2(0.94f, 1.0f), header.RectTransform, Anchor.CenterLeft), LocalizedWindowTitle(title), font: GUIStyle.SubHeadingFont, textAlignment: Alignment.CenterLeft)
         {
             CanBeFocused = false
         };
@@ -245,7 +245,7 @@ public sealed partial class CharacterViewerPlugin
         var resizeHandle = new GUIFrame(new RectTransform(new Point(18, 18).Multiply(GUI.Scale), window.RectTransform, Anchor.BottomRight, Pivot.BottomRight), style: "GUIFrameListBox")
         {
             UserData = ResizeHandleUserData,
-            ToolTip = "Resize"
+            ToolTip = Text("tooltip.resize", "Resize")
         };
         new GUITextBlock(new RectTransform(Vector2.One, resizeHandle.RectTransform), "/", font: GUIStyle.SmallFont, textAlignment: Alignment.Center)
         {

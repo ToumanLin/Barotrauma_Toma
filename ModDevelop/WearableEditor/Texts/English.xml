@@ -1,4 +1,103 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <infotexts language="English" nowhitespace="true" translatedname="English">
-
+  <wearableeditor.button.apply>Apply</wearableeditor.button.apply>
+  <wearableeditor.button.cancel>Cancel</wearableeditor.button.cancel>
+  <wearableeditor.button.copy>Copy</wearableeditor.button.copy>
+  <wearableeditor.button.default>Default</wearableeditor.button.default>
+  <wearableeditor.button.delete>Delete</wearableeditor.button.delete>
+  <wearableeditor.button.justsaveit>Just save it</wearableeditor.button.justsaveit>
+  <wearableeditor.button.modmanager>Mod Manager</wearableeditor.button.modmanager>
+  <wearableeditor.button.next>Next</wearableeditor.button.next>
+  <wearableeditor.button.paste>Paste</wearableeditor.button.paste>
+  <wearableeditor.button.prev>Prev</wearableeditor.button.prev>
+  <wearableeditor.button.reload>Reload</wearableeditor.button.reload>
+  <wearableeditor.button.remove>Remove</wearableeditor.button.remove>
+  <wearableeditor.button.revert>Revert</wearableeditor.button.revert>
+  <wearableeditor.button.save>Save</wearableeditor.button.save>
+  <wearableeditor.dropdown.nomatchingwearables>No matching wearable items</wearableeditor.dropdown.nomatchingwearables>
+  <wearableeditor.dropdown.selectclothing>Select clothing</wearableeditor.dropdown.selectclothing>
+  <wearableeditor.field.alphaclipotherwearables>alphaclipotherwearables</wearableeditor.field.alphaclipotherwearables>
+  <wearableeditor.field.canbehiddenbyitem>canbehiddenbyitem</wearableeditor.field.canbehiddenbyitem>
+  <wearableeditor.field.canbehiddenbyotherwearables>canbehiddenbyotherwearables</wearableeditor.field.canbehiddenbyotherwearables>
+  <wearableeditor.field.compress>compress</wearableeditor.field.compress>
+  <wearableeditor.field.depth>depth</wearableeditor.field.depth>
+  <wearableeditor.field.depthlimb>depthlimb</wearableeditor.field.depthlimb>
+  <wearableeditor.field.hidelimb>hidelimb</wearableeditor.field.hidelimb>
+  <wearableeditor.field.hideotherwearables>hideotherwearables</wearableeditor.field.hideotherwearables>
+  <wearableeditor.field.hidewearablesoftype>hidewearablesoftype</wearableeditor.field.hidewearablesoftype>
+  <wearableeditor.field.ignorelimbscale>ignorelimbscale</wearableeditor.field.ignorelimbscale>
+  <wearableeditor.field.ignoreragdollscale>ignoreragdollscale</wearableeditor.field.ignoreragdollscale>
+  <wearableeditor.field.ignoretexturescale>ignoretexturescale</wearableeditor.field.ignoretexturescale>
+  <wearableeditor.field.inheritlimbdepth>inheritlimbdepth</wearableeditor.field.inheritlimbdepth>
+  <wearableeditor.field.inheritorigin>inheritorigin</wearableeditor.field.inheritorigin>
+  <wearableeditor.field.inheritscale>inheritscale</wearableeditor.field.inheritscale>
+  <wearableeditor.field.inheritsourcerect>inheritsourcerect</wearableeditor.field.inheritsourcerect>
+  <wearableeditor.field.limb>limb</wearableeditor.field.limb>
+  <wearableeditor.field.name>name</wearableeditor.field.name>
+  <wearableeditor.field.origin>origin</wearableeditor.field.origin>
+  <wearableeditor.field.rotation>rotation</wearableeditor.field.rotation>
+  <wearableeditor.field.scale>scale</wearableeditor.field.scale>
+  <wearableeditor.field.sheetelementsize>sheetelementsize</wearableeditor.field.sheetelementsize>
+  <wearableeditor.field.sheetindex>sheetindex</wearableeditor.field.sheetindex>
+  <wearableeditor.field.size>size</wearableeditor.field.size>
+  <wearableeditor.field.sound>sound</wearableeditor.field.sound>
+  <wearableeditor.field.sourcerect>sourcerect</wearableeditor.field.sourcerect>
+  <wearableeditor.field.texture>texture</wearableeditor.field.texture>
+  <wearableeditor.format.indexnone>[index]: None</wearableeditor.format.indexnone>
+  <wearableeditor.info.clothing>Name: [name]\nIdentifier: [identifier]\nWearable sprites: [count]\nXML: [xml]</wearableeditor.info.clothing>
+  <wearableeditor.label.beard>Beard</wearableeditor.label.beard>
+  <wearableeditor.label.face>Face</wearableeditor.label.face>
+  <wearableeditor.label.gender>Gender</wearableeditor.label.gender>
+  <wearableeditor.label.hair>Hair</wearableeditor.label.hair>
+  <wearableeditor.label.head>Head</wearableeditor.label.head>
+  <wearableeditor.label.moustache>Moustache</wearableeditor.label.moustache>
+  <wearableeditor.label.xmlcode>XML code:\n[xml]</wearableeditor.label.xmlcode>
+  <wearableeditor.label.zoom>Zoom: [percent]%</wearableeditor.label.zoom>
+  <wearableeditor.message.couldnotequip>Could not equip the selected item in any allowed slot.</wearableeditor.message.couldnotequip>
+  <wearableeditor.message.failedtoequip>Failed to equip selected clothing. See console for details.</wearableeditor.message.failedtoequip>
+  <wearableeditor.message.nobodysprites>No body sprites available.</wearableeditor.message.nobodysprites>
+  <wearableeditor.message.nocharacterinfo>No CharacterInfo available.</wearableeditor.message.nocharacterinfo>
+  <wearableeditor.message.nocharacterinventory>No character inventory available.</wearableeditor.message.nocharacterinventory>
+  <wearableeditor.message.noclothingselected>No clothing selected.</wearableeditor.message.noclothingselected>
+  <wearableeditor.message.noequippedspriteentries>Selected clothing has no equipped sprite entries.</wearableeditor.message.noequippedspriteentries>
+  <wearableeditor.message.noheadsprites>No head sprites available.</wearableeditor.message.noheadsprites>
+  <wearableeditor.message.nopickablecomponent>Selected item has no pickable component.</wearableeditor.message.nopickablecomponent>
+  <wearableeditor.message.nospriteentries>Selected clothing has no sprite entries.</wearableeditor.message.nospriteentries>
+  <wearableeditor.message.novisiblesprites>Selected clothing has no visible sprites.</wearableeditor.message.novisiblesprites>
+  <wearableeditor.message.nowearablecomponent>Selected item has no wearable component.</wearableeditor.message.nowearablecomponent>
+  <wearableeditor.message.nowearableparent>Selected clothing has no Wearable element to paste into.</wearableeditor.message.nowearableparent>
+  <wearableeditor.message.nowearablexmlselected>No wearable XML file is selected.</wearableeditor.message.nowearablexmlselected>
+  <wearableeditor.message.pastedtextureabsolutepath>Pasted sprite texture could not be matched to a content package, so an absolute path was used.\n\n[path]</wearableeditor.message.pastedtextureabsolutepath>
+  <wearableeditor.message.spritecopied>Wearable sprite copied.</wearableeditor.message.spritecopied>
+  <wearableeditor.message.spritedeleted>Wearable sprite deleted. Use Save to write the XML.</wearableeditor.message.spritedeleted>
+  <wearableeditor.message.spritepasted>Wearable sprite pasted.</wearableeditor.message.spritepasted>
+  <wearableeditor.message.xmlnotfound>Could not find the XML document for this wearable.</wearableeditor.message.xmlnotfound>
+  <wearableeditor.message.xmlsaved>Wearable XML saved to [path]</wearableeditor.message.xmlsaved>
+  <wearableeditor.message.xmlsavefailed>Failed to save XML.\n\n[error]</wearableeditor.message.xmlsavefailed>
+  <wearableeditor.messagebox.deletewearablesprite.body>Delete sprite entry &quot;[label]&quot;?\n\nThis changes the editor state only. Use Save to write it to XML.</wearableeditor.messagebox.deletewearablesprite.body>
+  <wearableeditor.messagebox.deletewearablesprite.title>Delete Wearable Sprite</wearableeditor.messagebox.deletewearablesprite.title>
+  <wearableeditor.message.nestednodes>Nested nodes: LightComponent [[lightcount]]  override [[overridecount]]\nNested node editing: planned</wearableeditor.message.nestednodes>
+  <wearableeditor.spriteentry.head>Head</wearableeditor.spriteentry.head>
+  <wearableeditor.spriteentry.tags>tags [tags]</wearableeditor.spriteentry.tags>
+  <wearableeditor.spritepanel.bodysprites>Body Sprites</wearableeditor.spritepanel.bodysprites>
+  <wearableeditor.spritepanel.clothingsprites>Clothing Sprites</wearableeditor.spritepanel.clothingsprites>
+  <wearableeditor.spritepanel.headsprites>Head Sprites</wearableeditor.spritepanel.headsprites>
+  <wearableeditor.status.equippedforpreview>Equipped for preview.</wearableeditor.status.equippedforpreview>
+  <wearableeditor.suffix.inherited> (inherited)</wearableeditor.suffix.inherited>
+  <wearableeditor.toggle.ingamebehavior>IN-GAME BEHAVIOR [H]</wearableeditor.toggle.ingamebehavior>
+  <wearableeditor.toggle.wearableeditor>WEARABLE EDITOR [7]</wearableeditor.toggle.wearableeditor>
+  <wearableeditor.toggle.wearableviewer>WEARABLE VIEWER [6]</wearableeditor.toggle.wearableviewer>
+  <wearableeditor.tooltip.resize>Resize</wearableeditor.tooltip.resize>
+  <wearableeditor.tooltip.spriteentry>[title]\nFile: [file]\nRect: [rect][inheritedrect]\nOrigin: [origin][inheritedorigin]\nScale: [scale]</wearableeditor.tooltip.spriteentry>
+  <wearableeditor.value.default>Default</wearableeditor.value.default>
+  <wearableeditor.value.none>None</wearableeditor.value.none>
+  <wearableeditor.value.selectedsprite>selected sprite</wearableeditor.value.selectedsprite>
+  <wearableeditor.warning.nonlocalsave>Only XML files in LocalMods can be saved by default.\n\n[path]\n\nSaving anyway may change a workshop mod file or Vanilla item. Steam can overwrite it.</wearableeditor.warning.nonlocalsave>
+  <wearableeditor.window.bodysprite>Body Sprite</wearableeditor.window.bodysprite>
+  <wearableeditor.window.characterviewer>Character Viewer</wearableeditor.window.characterviewer>
+  <wearableeditor.window.clothingmanager>Clothing Manager</wearableeditor.window.clothingmanager>
+  <wearableeditor.window.clothingsprite>Clothing Sprite</wearableeditor.window.clothingsprite>
+  <wearableeditor.window.headsprite>Head Sprite</wearableeditor.window.headsprite>
+  <wearableeditor.window.wearableeditor>Wearable Editor</wearableeditor.window.wearableeditor>
+  <wearableeditor.window.wearablespritelist>Wearable Sprite List</wearableeditor.window.wearablespritelist>
 </infotexts>

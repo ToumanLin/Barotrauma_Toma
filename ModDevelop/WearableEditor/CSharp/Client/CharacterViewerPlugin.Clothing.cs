@@ -32,7 +32,7 @@ public sealed partial class CharacterViewerPlugin
             }
         };
 
-        clothingDropDown = new GUIDropDown(new RectTransform(new Vector2(1.0f, 0.09f), content.RectTransform), "Select clothing");
+        clothingDropDown = new GUIDropDown(new RectTransform(new Vector2(1.0f, 0.09f), content.RectTransform), Text("dropdown.selectclothing", "Select clothing"));
         clothingDropDown.OnSelected = (_, data) =>
         {
             if (suppressClothingSelection) { return true; }
@@ -48,14 +48,14 @@ public sealed partial class CharacterViewerPlugin
             Stretch = true,
             RelativeSpacing = 0.02f
         };
-        CreateButton(navRow, "Prev", () => SelectAdjacentClothing(-1));
-        CreateButton(navRow, "Next", () => SelectAdjacentClothing(1));
-        CreateButton(navRow, "Reload", () => EquipViewerClothing(selectedClothingPrefab));
-        CreateButton(navRow, "Remove", () =>
+        CreateButton(navRow, Text("button.prev", "Prev"), () => SelectAdjacentClothing(-1));
+        CreateButton(navRow, Text("button.next", "Next"), () => SelectAdjacentClothing(1));
+        CreateButton(navRow, Text("button.reload", "Reload"), () => EquipViewerClothing(selectedClothingPrefab));
+        CreateButton(navRow, Text("button.remove", "Remove"), () =>
         {
             selectedClothingPrefab = null;
             ClearViewerClothing();
-            UpdateClothingInfo(NoClothingSelectedText);
+            UpdateClothingInfo(Text("message.noclothingselected", NoClothingSelectedText));
             UpdateAllViewerSpriteInfo();
             PopulateClothingDropDown();
             QueueWearableEditorRebuild();
@@ -70,7 +70,7 @@ public sealed partial class CharacterViewerPlugin
         UpdateClothingInfo();
     }
 
-    private static void CreateButton(GUILayoutGroup parent, string text, Action onClicked)
+    private static void CreateButton(GUILayoutGroup parent, LocalizedString text, Action onClicked)
     {
         new GUIButton(new RectTransform(Vector2.One, parent.RectTransform), text, style: "GUIButtonSmall")
         {
@@ -101,7 +101,7 @@ public sealed partial class CharacterViewerPlugin
         }
         else
         {
-            clothingDropDown.Text = prefabs.Count == 0 ? "No matching wearable items" : "Select clothing";
+            clothingDropDown.Text = prefabs.Count == 0 ? Text("dropdown.nomatchingwearables", "No matching wearable items") : Text("dropdown.selectclothing", "Select clothing");
         }
         suppressClothingSelection = false;
     }
@@ -138,7 +138,7 @@ public sealed partial class CharacterViewerPlugin
         ClearViewerClothing();
         if (prefab == null)
         {
-            UpdateClothingInfo(NoClothingSelectedText);
+            UpdateClothingInfo(Text("message.noclothingselected", NoClothingSelectedText));
             UpdateAllViewerSpriteInfo();
             QueueWearableEditorRebuild();
             return;
@@ -147,7 +147,7 @@ public sealed partial class CharacterViewerPlugin
         Character character = CurrentCharacter;
         if (character?.Inventory == null)
         {
-            UpdateClothingInfo("No character inventory available.");
+            UpdateClothingInfo(Text("message.nocharacterinventory", "No character inventory available."));
             UpdateAllViewerSpriteInfo();
             QueueWearableEditorRebuild();
             return;
@@ -165,7 +165,7 @@ public sealed partial class CharacterViewerPlugin
             if (wearable == null)
             {
                 SafeRemoveItem(item);
-                UpdateClothingInfo("Selected item has no wearable component.");
+                UpdateClothingInfo(Text("message.nowearablecomponent", "Selected item has no wearable component."));
                 UpdateAllViewerSpriteInfo();
                 QueueWearableEditorRebuild();
                 return;
@@ -173,7 +173,7 @@ public sealed partial class CharacterViewerPlugin
             if (pickable == null)
             {
                 SafeRemoveItem(item);
-                UpdateClothingInfo("Selected item has no pickable component.");
+                UpdateClothingInfo(Text("message.nopickablecomponent", "Selected item has no pickable component."));
                 UpdateAllViewerSpriteInfo();
                 QueueWearableEditorRebuild();
                 return;
@@ -187,7 +187,7 @@ public sealed partial class CharacterViewerPlugin
             if (!character.Inventory.TryPutItem(item, null, allowedSlots, createNetworkEvent: false))
             {
                 SafeRemoveItem(item);
-                UpdateClothingInfo("Could not equip the selected item in any allowed slot.");
+                UpdateClothingInfo(Text("message.couldnotequip", "Could not equip the selected item in any allowed slot."));
                 UpdateAllViewerSpriteInfo();
                 QueueWearableEditorRebuild();
                 return;
@@ -195,7 +195,7 @@ public sealed partial class CharacterViewerPlugin
 
             wearable.Equip(character);
             viewerEquippedItems.Add(item);
-            UpdateClothingInfo("Equipped for preview.");
+            UpdateClothingInfo(Text("status.equippedforpreview", "Equipped for preview."));
             UpdateAllViewerSpriteInfo();
             QueueWearableEditorRebuild();
         }
@@ -203,7 +203,7 @@ public sealed partial class CharacterViewerPlugin
         {
             SafeRemoveItem(item);
             LuaCsLogger.LogError($"CharacterViewer failed to equip {prefab.Identifier}: {ex}");
-            UpdateClothingInfo("Failed to equip selected clothing. See console for details.");
+            UpdateClothingInfo(Text("message.failedtoequip", "Failed to equip selected clothing. See console for details."));
             UpdateAllViewerSpriteInfo();
             QueueWearableEditorRebuild();
         }
@@ -236,12 +236,12 @@ public sealed partial class CharacterViewerPlugin
         item.Remove();
     }
 
-    private void UpdateClothingInfo(string state = null)
+    private void UpdateClothingInfo(LocalizedString state = null)
     {
         if (clothingInfoText == null) { return; }
         if (selectedClothingPrefab == null)
         {
-            clothingInfoText.Text = NoClothingSelectedText;
+            clothingInfoText.Text = Text("message.noclothingselected", NoClothingSelectedText);
         }
         else
         {
@@ -249,11 +249,13 @@ public sealed partial class CharacterViewerPlugin
                 .GetChildElements("Wearable")
                 .SelectMany(w => w.GetChildElements("sprite"))
                 .Count();
-            clothingInfoText.Text =
-                $"Name: {selectedClothingPrefab.Name}\n" +
-                $"Identifier: {selectedClothingPrefab.Identifier}\n" +
-                $"Wearable sprites: {spriteCount}\n" +
-                $"XML: {selectedClothingPrefab.FilePath.Value}";
+            clothingInfoText.Text = TextWithVariables(
+                "info.clothing",
+                "Name: [name]\\nIdentifier: [identifier]\\nWearable sprites: [count]\\nXML: [xml]",
+                ("[name]", selectedClothingPrefab.Name.Value),
+                ("[identifier]", selectedClothingPrefab.Identifier.Value),
+                ("[count]", spriteCount.ToString()),
+                ("[xml]", selectedClothingPrefab.FilePath.Value));
         }
         if (statusText != null)
         {

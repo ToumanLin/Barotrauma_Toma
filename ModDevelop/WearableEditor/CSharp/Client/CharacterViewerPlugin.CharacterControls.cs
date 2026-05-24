@@ -34,7 +34,7 @@ public sealed partial class CharacterViewerPlugin
         GUILayoutGroup layout = fileEditPanel?.GetChild<GUILayoutGroup>();
         if (layout == null || layout.GetAllChildren().Any(c => c.UserData as string == ModManagerButtonUserData)) { return; }
 
-        var button = new GUIButton(new RectTransform(new Vector2(1.0f, 0.04f), layout.RectTransform), "Mod Manager")
+        var button = new GUIButton(new RectTransform(new Vector2(1.0f, 0.04f), layout.RectTransform), Text("button.modmanager", "Mod Manager"))
         {
             UserData = ModManagerButtonUserData,
             OnClicked = (_, _) =>
@@ -55,7 +55,7 @@ public sealed partial class CharacterViewerPlugin
 
         if (!layout.GetAllChildren().Any(c => c.UserData as string == PanelToggleUserData))
         {
-            var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), "WEARABLE VIEWER [6]")
+            var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), Text("toggle.wearableviewer", "WEARABLE VIEWER [6]"))
             {
                 UserData = PanelToggleUserData,
                 Selected = panelsEnabled,
@@ -78,7 +78,7 @@ public sealed partial class CharacterViewerPlugin
 
         if (!layout.GetAllChildren().Any(c => c.UserData as string == WearableEditorToggleUserData))
         {
-            var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), "WEARABLE EDITOR [7]")
+            var tickBox = new GUITickBox(new RectTransform(new Vector2(1.0f, 0.03f), layout.RectTransform), Text("toggle.wearableeditor", "WEARABLE EDITOR [7]"))
             {
                 UserData = WearableEditorToggleUserData,
                 Selected = wearableEditorEnabled,
@@ -122,17 +122,17 @@ public sealed partial class CharacterViewerPlugin
         CharacterInfo info = character?.Info;
         if (info?.Head?.Preset == null)
         {
-            new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), content.RectTransform), "No CharacterInfo available.", wrap: true);
+            new GUITextBlock(new RectTransform(new Vector2(1.0f, 0.0f), content.RectTransform), Text("message.nocharacterinfo", "No CharacterInfo available."), wrap: true);
             return;
         }
 
         CreateGenderDropDown(content, character, info);
         CreateHeadPresetDropDown(content, character, info);
         info.LoadHeadAttachments();
-        CreateAttachmentDropDown(content, "Hair", info.Hairs, info.Head.HairIndex, index => info.Head.HairIndex = index);
-        CreateAttachmentDropDown(content, "Beard", info.Beards, info.Head.BeardIndex, index => info.Head.BeardIndex = index);
-        CreateAttachmentDropDown(content, "Moustache", info.Moustaches, info.Head.MoustacheIndex, index => info.Head.MoustacheIndex = index);
-        CreateAttachmentDropDown(content, "Face", info.FaceAttachments, info.Head.FaceAttachmentIndex, index => info.Head.FaceAttachmentIndex = index);
+        CreateAttachmentDropDown(content, Text("label.hair", "Hair"), info.Hairs, info.Head.HairIndex, index => info.Head.HairIndex = index);
+        CreateAttachmentDropDown(content, Text("label.beard", "Beard"), info.Beards, info.Head.BeardIndex, index => info.Head.BeardIndex = index);
+        CreateAttachmentDropDown(content, Text("label.moustache", "Moustache"), info.Moustaches, info.Head.MoustacheIndex, index => info.Head.MoustacheIndex = index);
+        CreateAttachmentDropDown(content, Text("label.face", "Face"), info.FaceAttachments, info.Head.FaceAttachmentIndex, index => info.Head.FaceAttachmentIndex = index);
 
     }
 
@@ -146,8 +146,8 @@ public sealed partial class CharacterViewerPlugin
             selectedGender = info.Head.Preset.TagSet.FirstOrDefault(genders.Contains);
         }
 
-        GUILayoutGroup row = CreateLabeledRow(content, "Gender");
-        GUIDropDown dropDown = new GUIDropDown(new RectTransform(new Vector2(0.68f, 1.0f), row.RectTransform), selectedGender.IsEmpty ? "Default" : selectedGender.Value);
+        GUILayoutGroup row = CreateLabeledRow(content, Text("label.gender", "Gender"));
+        GUIDropDown dropDown = new GUIDropDown(new RectTransform(new Vector2(0.68f, 1.0f), row.RectTransform), selectedGender.IsEmpty ? Text("value.default", "Default") : selectedGender.Value);
         foreach (Identifier gender in genders.OrderBy(g => g.Value))
         {
             dropDown.AddItem(gender.Value, gender);
@@ -177,7 +177,7 @@ public sealed partial class CharacterViewerPlugin
 
     private void CreateHeadPresetDropDown(GUILayoutGroup content, Character character, CharacterInfo info)
     {
-        GUILayoutGroup row = CreateLabeledRow(content, "Head");
+        GUILayoutGroup row = CreateLabeledRow(content, Text("label.head", "Head"));
         GUIDropDown dropDown = new GUIDropDown(new RectTransform(new Vector2(0.68f, 1.0f), row.RectTransform), GetHeadPresetLabel(info.Head.Preset));
         foreach (CharacterInfo.HeadPreset preset in info.Prefab.Heads)
         {
@@ -194,7 +194,7 @@ public sealed partial class CharacterViewerPlugin
         };
     }
 
-    private void CreateAttachmentDropDown(GUILayoutGroup content, string label, IReadOnlyList<ContentXElement> elements, int selectedIndex, Action<int> applyIndex)
+    private void CreateAttachmentDropDown(GUILayoutGroup content, LocalizedString label, IReadOnlyList<ContentXElement> elements, int selectedIndex, Action<int> applyIndex)
     {
         if (elements == null || elements.Count == 0) { return; }
 
@@ -221,7 +221,7 @@ public sealed partial class CharacterViewerPlugin
         };
     }
 
-    private static GUILayoutGroup CreateLabeledRow(GUILayoutGroup parent, string label)
+    private static GUILayoutGroup CreateLabeledRow(GUILayoutGroup parent, LocalizedString label)
     {
         GUILayoutGroup row = new GUILayoutGroup(new RectTransform(new Vector2(1.0f, 0.095f), parent.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
         {
@@ -234,12 +234,12 @@ public sealed partial class CharacterViewerPlugin
 
     private static string GetHeadPresetLabel(CharacterInfo.HeadPreset preset)
     {
-        return preset == null ? "None" : string.Join(", ", preset.TagSet.Select(t => t.Value));
+        return preset == null ? Text("value.none", "None").Value : string.Join(", ", preset.TagSet.Select(t => t.Value));
     }
 
     private static string GetAttachmentLabel(ContentXElement element, int index)
     {
-        if (element == null) { return $"{index}: None"; }
+        if (element == null) { return TextWithVariables("format.indexnone", "[index]: None", ("[index]", index.ToString())).Value; }
         string name = element.GetAttributeString("name", null) ??
                       element.GetAttributeString("identifier", null) ??
                       element.Name.ToString();
@@ -277,7 +277,7 @@ public sealed partial class CharacterViewerPlugin
 
     private void OpenModManager()
     {
-        GUIMessageBox messageBox = new GUIMessageBox("Mod Manager", "", new LocalizedString[] { "Cancel", "Apply" }, new Vector2(0.78f, 0.88f));
+        GUIMessageBox messageBox = new GUIMessageBox(Text("button.modmanager", "Mod Manager"), "", new LocalizedString[] { Text("button.cancel", "Cancel"), Text("button.apply", "Apply") }, new Vector2(0.78f, 0.88f));
         if (messageBox.Text != null)
         {
             messageBox.Text.Visible = false;
@@ -294,7 +294,7 @@ public sealed partial class CharacterViewerPlugin
             Stretch = true,
             RelativeSpacing = 0.02f
         };
-        new GUIButton(new RectTransform(Vector2.One, buttonRow.RectTransform), "Cancel")
+        new GUIButton(new RectTransform(Vector2.One, buttonRow.RectTransform), Text("button.cancel", "Cancel"))
         {
             OnClicked = (_, _) =>
             {
@@ -302,7 +302,7 @@ public sealed partial class CharacterViewerPlugin
                 return true;
             }
         };
-        new GUIButton(new RectTransform(Vector2.One, buttonRow.RectTransform), "Apply")
+        new GUIButton(new RectTransform(Vector2.One, buttonRow.RectTransform), Text("button.apply", "Apply"))
         {
             OnClicked = (_, _) =>
             {

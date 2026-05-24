@@ -1,2 +1,6 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<contentpackage name="Wearable Viewer - Editor" modversion="1.0.4" corepackage="False" steamworkshopid="3723447615" gameversion="1.12.7.0" />
+<?xml version="1.0" encoding="utf-8"?>
+<contentpackage name="Wearable Viewer - Editor" modversion="1.0.4" corepackage="False" steamworkshopid="3723447615" gameversion="1.12.7.0">
+  <Text file="%ModDir%/Texts/English.xml" />
+  <Text file="%ModDir%/Texts/SimplifiedChinese.xml" />
+  <Text file="%ModDir%/Texts/TraditionalChinese.xml" />
+</contentpackage>
