@@ -280,7 +280,7 @@ public sealed partial class CharacterViewerPlugin
 
         int canvasHeight = Math.Max(y + bottomPadding, GUI.IntScale(24));
         new GUICustomComponent(
-            new RectTransform(new Point(width, canvasHeight), list.Content.RectTransform, Anchor.TopLeft, Pivot.TopLeft),
+            new RectTransform(new Point(width, canvasHeight), list.Content.RectTransform, Anchor.TopLeft, Pivot.TopLeft, isFixedSize: true),
             onDraw: (spriteBatch, component) => DrawSpritePreviewCanvas(spriteBatch, component, entries, zoom, GetSpriteHorizontalScrollOffset(list)))
         {
             CanBeFocused = true,
