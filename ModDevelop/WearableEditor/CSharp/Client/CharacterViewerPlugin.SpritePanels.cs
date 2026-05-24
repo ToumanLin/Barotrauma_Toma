@@ -293,9 +293,11 @@ public sealed partial class CharacterViewerPlugin
         }
 
         int canvasHeight = Math.Max(y + bottomPadding, GUI.IntScale(24));
+        bool allowPreviewSelection = list == clothingSpriteInfoList;
         new GUICustomComponent(
             new RectTransform(new Point(width, canvasHeight), list.Content.RectTransform, Anchor.TopLeft, Pivot.TopLeft, isFixedSize: true),
-            onDraw: (spriteBatch, component) => DrawSpritePreviewCanvas(spriteBatch, component, entries, zoom, GetSpriteHorizontalScrollOffset(list)))
+            onDraw: (spriteBatch, component) => DrawSpritePreviewCanvas(spriteBatch, component, entries, zoom, GetSpriteHorizontalScrollOffset(list)),
+            onUpdate: (_, component) => UpdateSpritePreviewSelection(component, entries, zoom, GetSpriteHorizontalScrollOffset(list), allowPreviewSelection))
         {
             CanBeFocused = true,
             HideElementsOutsideFrame = false
@@ -361,6 +363,50 @@ public sealed partial class CharacterViewerPlugin
         scrollBar.BarScrollValue = needsHorizontalScroll ? offset : 0.0f;
     }
 
+    private void UpdateSpritePreviewSelection(GUICustomComponent component, IReadOnlyList<ViewerSpriteEntry> entries, float zoom, float horizontalOffset, bool allowPreviewSelection)
+    {
+        if (!allowPreviewSelection || !PlayerInput.PrimaryMouseButtonClicked()) { return; }
+        ViewerSpriteEntry hoveredEntry = GetHoveredSpritePreviewEntry(component, entries, zoom, horizontalOffset);
+        if (hoveredEntry?.SourceElement == null) { return; }
+        SelectWearableSpriteFromPreview(hoveredEntry.SourceElement);
+    }
+
+    private ViewerSpriteEntry GetHoveredSpritePreviewEntry(GUICustomComponent component, IReadOnlyList<ViewerSpriteEntry> entries, float zoom, float horizontalOffset)
+    {
+        int padding = GUI.IntScale(8);
+        int fileLabelHeight = GUI.IntScale(16);
+        int y = component.Rect.Y;
+        int x = component.Rect.X - (int)horizontalOffset;
+        Point mousePos = PlayerInput.MousePosition.ToPoint();
+
+        foreach (var group in entries.GroupBy(static entry => entry.FilePath))
+        {
+            ViewerSpriteEntry first = group.First();
+            Texture2D texture = first.Sprite.Texture;
+            if (texture == null) { continue; }
+
+            y += fileLabelHeight;
+            Rectangle sheetRect = new Rectangle(x + padding, y, (int)(texture.Width * zoom), (int)(texture.Height * zoom));
+            foreach (ViewerSpriteEntry entry in group)
+            {
+                Rectangle source = entry.SourceRect;
+                Rectangle dest = new Rectangle(
+                    sheetRect.X + (int)(source.X * zoom),
+                    sheetRect.Y + (int)(source.Y * zoom),
+                    Math.Max(1, (int)(source.Width * zoom)),
+                    Math.Max(1, (int)(source.Height * zoom)));
+                if (dest.Contains(mousePos))
+                {
+                    return entry;
+                }
+            }
+
+            y += sheetRect.Height + padding;
+        }
+
+        return null;
+    }
+
     private void DrawSpritePreviewCanvas(SpriteBatch spriteBatch, GUICustomComponent component, IReadOnlyList<ViewerSpriteEntry> entries, float zoom, float horizontalOffset)
     {
         int padding = GUI.IntScale(8);
@@ -399,10 +445,6 @@ public sealed partial class CharacterViewerPlugin
                 if (dest.Contains(mousePos))
                 {
                     tooltip = entry.Tooltip;
-                    if (PlayerInput.PrimaryMouseButtonClicked())
-                    {
-                        SelectWearableSpriteFromPreview(entry.SourceElement);
-                    }
                 }
             }
 

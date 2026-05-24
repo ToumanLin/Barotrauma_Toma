@@ -136,19 +136,25 @@ public sealed partial class CharacterViewerPlugin
             SetPointAttribute(spriteElement, "sheetelementsize", value);
             reEquipRefresh();
         });
-        CreateVector2FloatLine(layout, Text("field.origin", "origin"), GetEffectiveOrigin(wearableSprite), 0.001f, 4, value =>
-        {
-            value = Vector2.Clamp(value, Vector2.Zero, Vector2.One);
-            spriteElement.SetAttributeValue("origin", $"{FormatFloat(value.X)},{FormatFloat(value.Y)}");
-            if (wearableSprite.Sprite != null) { wearableSprite.Sprite.RelativeOrigin = value; }
-            directRefresh();
-        });
+        CreateVector2FloatLine(
+            layout,
+            Text("field.origin", "origin"),
+            GetEffectiveOrigin(wearableSprite),
+            0.001f,
+            4,
+            value =>
+            {
+                spriteElement.SetAttributeValue("origin", $"{FormatFloat(value.X)},{FormatFloat(value.Y)}");
+                if (wearableSprite.Sprite != null) { wearableSprite.Sprite.RelativeOrigin = value; }
+                directRefresh();
+            },
+            GUINumberInput.ButtonVisibility.ForceVisible);
         CreateVector2FloatLine(layout, Text("field.size", "size"), spriteElement.GetAttributeVector2("size", Vector2.One), 0.01f, 3, value =>
         {
             spriteElement.SetAttributeValue("size", $"{FormatFloat(value.X)},{FormatFloat(value.Y)}");
             ApplySpriteSize(wearableSprite, value);
             directRefresh();
-        });
+        }, GUINumberInput.ButtonVisibility.ForceVisible);
         CreateFloatLine(layout, Text("field.depth", "depth"), spriteElement.GetAttributeFloat("depth", wearableSprite.Sprite?.Depth ?? 0.001f), 0.001f, 4, value =>
         {
             value = MathHelper.Clamp(value, 0.001f, 0.999f);
@@ -194,13 +200,13 @@ public sealed partial class CharacterViewerPlugin
             spriteElement.SetAttributeValue("scale", FormatFloat(value));
             SetWearableSpriteProperty(wearableSprite, "Scale", value);
             directRefresh();
-        });
+        }, GUINumberInput.ButtonVisibility.ForceVisible);
         CreateFloatLine(layout, Text("field.rotation", "rotation"), spriteElement.GetAttributeFloat("rotation", 0.0f), 0.1f, 2, value =>
         {
             spriteElement.SetAttributeValue("rotation", FormatFloat(value));
             SetWearableSpriteProperty(wearableSprite, "Rotation", MathHelper.ToRadians(value));
             directRefresh();
-        });
+        }, GUINumberInput.ButtonVisibility.ForceVisible);
         CreateStringInputLine(layout, Text("field.sound", "sound"), spriteElement, "sound", "", value =>
         {
             SetOptionalStringAttribute(spriteElement, "sound", value);
@@ -345,25 +351,42 @@ public sealed partial class CharacterViewerPlugin
         CreateIntInput(row, "h", h, newValue => { h = Math.Max(1, newValue); onChanged(x, y, w, h); });
     }
 
-    private static void CreateVector2FloatLine(GUILayoutGroup parent, LocalizedString label, Vector2 value, float step, int decimals, Action<Vector2> onChanged)
+    private static void CreateVector2FloatLine(
+        GUILayoutGroup parent,
+        LocalizedString label,
+        Vector2 value,
+        float step,
+        int decimals,
+        Action<Vector2> onChanged,
+        GUINumberInput.ButtonVisibility buttonVisibility = GUINumberInput.ButtonVisibility.Automatic,
+        float? minValue = null,
+        float? maxValue = null)
     {
         float x = value.X;
         float y = value.Y;
         var row = CreateEditorRow(parent, label);
-        CreateFloatInput(row, "x", x, step, decimals, newValue => { x = newValue; onChanged(new Vector2(x, y)); });
-        CreateFloatInput(row, "y", y, step, decimals, newValue => { y = newValue; onChanged(new Vector2(x, y)); });
+        CreateFloatInput(row, "x", x, step, decimals, newValue => { x = newValue; onChanged(new Vector2(x, y)); }, buttonVisibility, minValue, maxValue);
+        CreateFloatInput(row, "y", y, step, decimals, newValue => { y = newValue; onChanged(new Vector2(x, y)); }, buttonVisibility, minValue, maxValue);
     }
 
-    private static void CreateFloatLine(GUILayoutGroup parent, LocalizedString label, float value, float step, int decimals, Action<float> onChanged)
+    private static void CreateFloatLine(
+        GUILayoutGroup parent,
+        LocalizedString label,
+        float value,
+        float step,
+        int decimals,
+        Action<float> onChanged,
+        GUINumberInput.ButtonVisibility buttonVisibility = GUINumberInput.ButtonVisibility.Automatic)
     {
         var row = CreateEditorRow(parent, label);
-        var input = new GUINumberInput(new RectTransform(new Vector2(0.64f, 1.0f), row.RectTransform), NumberType.Float, relativeButtonAreaWidth: 0.14f)
+        var input = new GUINumberInput(new RectTransform(new Vector2(0.64f, 1.0f), row.RectTransform), NumberType.Float, relativeButtonAreaWidth: 0.14f, buttonVisibility: buttonVisibility)
         {
             FloatValue = value,
             ValueStep = step,
             DecimalsToDisplay = decimals,
             Font = GUIStyle.SmallFont
         };
+        ApplyFloatStepperRange(input, buttonVisibility);
         input.OnValueChanged += numberInput => onChanged(numberInput.FloatValue);
     }
 
@@ -383,7 +406,16 @@ public sealed partial class CharacterViewerPlugin
         input.OnValueChanged += numberInput => onChanged(numberInput.IntValue);
     }
 
-    private static void CreateFloatInput(GUILayoutGroup row, string label, float value, float step, int decimals, Action<float> onChanged)
+    private static void CreateFloatInput(
+        GUILayoutGroup row,
+        string label,
+        float value,
+        float step,
+        int decimals,
+        Action<float> onChanged,
+        GUINumberInput.ButtonVisibility buttonVisibility = GUINumberInput.ButtonVisibility.Automatic,
+        float? minValue = null,
+        float? maxValue = null)
     {
         var holder = new GUILayoutGroup(new RectTransform(new Vector2(0.32f, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
         {
@@ -391,14 +423,36 @@ public sealed partial class CharacterViewerPlugin
             RelativeSpacing = 0.02f
         };
         new GUITextBlock(new RectTransform(new Vector2(0.18f, 1.0f), holder.RectTransform), label, font: GUIStyle.SmallFont, textAlignment: Alignment.CenterLeft);
-        var input = new GUINumberInput(new RectTransform(new Vector2(0.78f, 1.0f), holder.RectTransform), NumberType.Float, relativeButtonAreaWidth: 0.2f)
+        var input = new GUINumberInput(new RectTransform(new Vector2(0.78f, 1.0f), holder.RectTransform), NumberType.Float, relativeButtonAreaWidth: 0.2f, buttonVisibility: buttonVisibility)
         {
             FloatValue = value,
             ValueStep = step,
             DecimalsToDisplay = decimals,
             Font = GUIStyle.SmallFont
         };
+        ApplyFloatStepperRange(input, buttonVisibility, minValue, maxValue);
         input.OnValueChanged += numberInput => onChanged(numberInput.FloatValue);
+    }
+
+    private static void ApplyFloatStepperRange(
+        GUINumberInput input,
+        GUINumberInput.ButtonVisibility buttonVisibility,
+        float? minValue = null,
+        float? maxValue = null)
+    {
+        if (buttonVisibility == GUINumberInput.ButtonVisibility.ForceVisible)
+        {
+            minValue ??= float.MinValue;
+            maxValue ??= float.MaxValue;
+        }
+        if (minValue.HasValue)
+        {
+            input.MinValueFloat = minValue.Value;
+        }
+        if (maxValue.HasValue)
+        {
+            input.MaxValueFloat = maxValue.Value;
+        }
     }
 
     private static GUIButton CreateEditorButton(GUILayoutGroup row, LocalizedString text, Action onClicked)
