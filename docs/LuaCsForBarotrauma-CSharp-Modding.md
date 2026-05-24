@@ -2,6 +2,8 @@
 
 LuaCsForBarotrauma adds two modding layers to Barotrauma: Lua scripting and C# plugin loading. This document focuses on the C# side: how it is loaded, what it can modify, where the real limits are, and how to build a small UI mod.
 
+Do not use Dot net build!
+
 ## How C# Mods Load
 
 LuaCs treats C# code as an unrestricted content package resource. When Barotrauma loads enabled content packages, LuaCs reads the package metadata and collects C# resources from either `ModConfig.xml` entries or the legacy folder layout.

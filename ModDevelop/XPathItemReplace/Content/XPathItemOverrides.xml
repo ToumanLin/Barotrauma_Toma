@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Override>
+  <!-- Example:
+  <item identifier="divingmask">
+    <replace sel="./@scale">0.5</replace>
+    <replace sel="./@category">Diving</replace>
+    <replace sel="./@Tags">smallitem,diving,lightdiving,customtag</replace>
+    <replace sel="./Wearable[@limbtype='head']/sprite/@texture">%ModDir%/Content/Items/Jobgear/headgears.png</replace>
+    <replace sel="./Wearable[@limbtype='head']/sprite/@sourcerect">206,318,84,80</replace>
+    <replace sel="./Wearable[@limbtype='head']/sprite/@origin">0.52,0.4</replace>
+  </item>
+  -->
+</Override>

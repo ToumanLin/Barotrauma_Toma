@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModConfig>
+  <Assembly Folder="%ModDir%/CSharp/Shared"
+            IsScript="true"
+            Target="Any"
+            FriendlyName="XPathItemReplace.Shared"
+            UseInternalAccessName="true" />
+</ModConfig>
