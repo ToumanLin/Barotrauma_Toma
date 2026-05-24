@@ -115,9 +115,8 @@ public sealed partial class CharacterViewerPlugin
             SetOptionalStringAttribute(spriteElement, "texture", value);
             reEquipRefresh();
         });
-        CreateVector2IntLine(layout, Text("field.sourcerect", "sourcerect"), GetEffectiveSourceRect(wearableSprite), (x, y, w, h) =>
+        Action<Rectangle> setSourceRect = rect =>
         {
-            Rectangle rect = new Rectangle(x, y, Math.Max(1, w), Math.Max(1, h));
             spriteElement.SetAttributeValue("sourcerect", $"{rect.X},{rect.Y},{rect.Width},{rect.Height}");
             if (wearableSprite.Sprite != null)
             {
@@ -125,7 +124,20 @@ public sealed partial class CharacterViewerPlugin
                 wearableSprite.Sprite.RelativeOrigin = wearableSprite.Sprite.RelativeOrigin;
             }
             directRefresh();
-        });
+        };
+        bool hasInheritedSourceRect = TryGetInheritedSourceRect(wearableSprite, out _);
+        CreateVector2IntLine(layout, Text("field.sourcerect", "sourcerect"), GetEffectiveSourceRect(wearableSprite), (x, y, w, h) =>
+        {
+            setSourceRect(new Rectangle(x, y, Math.Max(1, w), Math.Max(1, h)));
+        },
+            Text("button.inherit", "Inherit"),
+            () =>
+            {
+                if (!TryGetInheritedSourceRect(wearableSprite, out Rectangle inheritedRect)) { return; }
+                setSourceRect(inheritedRect);
+                QueueWearableEditorRebuild();
+            },
+            hasInheritedSourceRect);
         CreatePointLine(layout, Text("field.sheetindex", "sheetindex"), spriteElement.GetAttributePoint("sheetindex", new Point(-1, -1)), value =>
         {
             SetPointAttribute(spriteElement, "sheetindex", value);
@@ -338,17 +350,37 @@ public sealed partial class CharacterViewerPlugin
         CreateIntInput(row, "y", y, newValue => { y = newValue; onChanged(new Point(x, y)); });
     }
 
-    private static void CreateVector2IntLine(GUILayoutGroup parent, LocalizedString label, Rectangle value, Action<int, int, int, int> onChanged)
+    private static void CreateVector2IntLine(
+        GUILayoutGroup parent,
+        LocalizedString label,
+        Rectangle value,
+        Action<int, int, int, int> onChanged,
+        LocalizedString buttonText = null,
+        Action onButtonClicked = null,
+        bool buttonEnabled = true)
     {
         int x = value.X;
         int y = value.Y;
         int w = value.Width;
         int h = value.Height;
         var row = CreateEditorRow(parent, label);
-        CreateIntInput(row, "x", x, newValue => { x = newValue; onChanged(x, y, w, h); });
-        CreateIntInput(row, "y", y, newValue => { y = newValue; onChanged(x, y, w, h); });
-        CreateIntInput(row, "w", w, newValue => { w = Math.Max(1, newValue); onChanged(x, y, w, h); });
-        CreateIntInput(row, "h", h, newValue => { h = Math.Max(1, newValue); onChanged(x, y, w, h); });
+        float inputWidth = buttonText == null || onButtonClicked == null ? 0.16f : 0.125f;
+        CreateIntInput(row, "x", x, newValue => { x = newValue; onChanged(x, y, w, h); }, inputWidth);
+        CreateIntInput(row, "y", y, newValue => { y = newValue; onChanged(x, y, w, h); }, inputWidth);
+        CreateIntInput(row, "w", w, newValue => { w = Math.Max(1, newValue); onChanged(x, y, w, h); }, inputWidth);
+        CreateIntInput(row, "h", h, newValue => { h = Math.Max(1, newValue); onChanged(x, y, w, h); }, inputWidth);
+        if (buttonText != null && onButtonClicked != null)
+        {
+            GUIButton button = new GUIButton(new RectTransform(new Vector2(0.13f, 1.0f), row.RectTransform), buttonText, style: "GUIButtonSmall")
+            {
+                OnClicked = (_, _) =>
+                {
+                    onButtonClicked();
+                    return true;
+                }
+            };
+            SetEditorButtonEnabled(button, buttonEnabled);
+        }
     }
 
     private static void CreateVector2FloatLine(
@@ -390,9 +422,9 @@ public sealed partial class CharacterViewerPlugin
         input.OnValueChanged += numberInput => onChanged(numberInput.FloatValue);
     }
 
-    private static void CreateIntInput(GUILayoutGroup row, string label, int value, Action<int> onChanged)
+    private static void CreateIntInput(GUILayoutGroup row, string label, int value, Action<int> onChanged, float holderRelativeWidth = 0.16f)
     {
-        var holder = new GUILayoutGroup(new RectTransform(new Vector2(0.16f, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
+        var holder = new GUILayoutGroup(new RectTransform(new Vector2(holderRelativeWidth, 1.0f), row.RectTransform), isHorizontal: true, childAnchor: Anchor.CenterLeft)
         {
             Stretch = true,
             RelativeSpacing = 0.02f
@@ -550,6 +582,32 @@ public sealed partial class CharacterViewerPlugin
     private static Rectangle GetEffectiveSourceRect(WearableSprite wearableSprite)
     {
         return wearableSprite?.Sprite?.SourceRect ?? wearableSprite?.SourceElement?.GetAttributeRect("sourcerect", Rectangle.Empty) ?? Rectangle.Empty;
+    }
+
+    private bool TryGetInheritedSourceRect(WearableSprite wearableSprite, out Rectangle inheritedRect)
+    {
+        inheritedRect = Rectangle.Empty;
+        if (wearableSprite == null) { return false; }
+
+        Limb limb = GetWearableSpriteSelections()
+            .FirstOrDefault(selection => selection.Sprite == wearableSprite || selection.Element == wearableSprite.SourceElement?.Element)
+            ?.Limb;
+        Sprite activeSprite = limb?.ActiveSprite;
+        if (activeSprite == null) { return false; }
+
+        if (wearableSprite.SheetIndex.HasValue)
+        {
+            inheritedRect = new Rectangle(CharacterInfo.CalculateOffset(activeSprite, wearableSprite.SheetIndex.Value), activeSprite.SourceRect.Size);
+        }
+        else if (limb.type == LimbType.Head && CurrentCharacter?.Info?.Head != null)
+        {
+            inheritedRect = new Rectangle(CharacterInfo.CalculateOffset(activeSprite, CurrentCharacter.Info.Head.SheetIndex.ToPoint()), activeSprite.SourceRect.Size);
+        }
+        else
+        {
+            inheritedRect = activeSprite.SourceRect;
+        }
+        return true;
     }
 
     private static Vector2 GetEffectiveOrigin(WearableSprite wearableSprite)
