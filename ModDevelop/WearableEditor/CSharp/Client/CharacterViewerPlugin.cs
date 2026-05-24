@@ -54,6 +54,8 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     private GUIFrame resizedWindow;
     private Point resizedWindowStartSize;
     private Point resizedWindowStartMouse;
+    private Point lastGuiViewportSize;
+    private float lastGuiScale = -1.0f;
 
     public void PreInitPatching()
     {
@@ -168,6 +170,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     private void AddWindowsToGuiUpdateList()
     {
         if (Screen.Selected is not CharacterEditorScreen) { return; }
+        RefreshGuiLayoutIfNeeded();
         EnsureEditorPanelControls();
         if ((!panelsEnabled && !wearableEditorEnabled) || IsBlockingGameMenuOpen())
         {
@@ -213,6 +216,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
     {
         if (Screen.Selected is not CharacterEditorScreen) { return; }
 
+        RefreshGuiLayoutIfNeeded();
         EnsureEditorPanelControls();
         UpdateShortcuts();
         UpdateWearableEditor();
@@ -416,8 +420,12 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         Point offset = windowOffsets.TryGetValue(title, out Point storedOffset) ? storedOffset : defaultOffset;
         Point storedSize = windowSizes.TryGetValue(title, out Point savedSize) ? savedSize : size;
         windowMinimumSizes[title] = size;
+        storedSize = ClampWindowSize(storedSize, size);
+        offset = ClampWindowOffset(offset, storedSize);
+        windowSizes[title] = storedSize;
+        windowOffsets[title] = offset;
         window = new GUIFrame(
-            new RectTransform(storedSize, GUI.Canvas, Anchor.TopLeft, Pivot.TopLeft)
+            new RectTransform(storedSize.Multiply(GUI.Scale), GUI.Canvas, Anchor.TopLeft, Pivot.TopLeft)
             {
                 AbsoluteOffset = offset.Multiply(GUI.Scale)
             },
@@ -462,6 +470,94 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         };
 
         return content;
+    }
+
+    private void RefreshGuiLayoutIfNeeded()
+    {
+        Point viewportSize = GetGuiViewportSize();
+        float guiScale = GUI.Scale;
+        if (lastGuiViewportSize == Point.Zero || lastGuiScale < 0.0f)
+        {
+            lastGuiViewportSize = viewportSize;
+            lastGuiScale = guiScale;
+            return;
+        }
+
+        if (lastGuiViewportSize == viewportSize && Math.Abs(lastGuiScale - guiScale) < 0.001f)
+        {
+            return;
+        }
+
+        StoreCurrentWindowLayout(headWindow);
+        StoreCurrentWindowLayout(clothingWindow);
+        StoreCurrentWindowLayout(bodySpriteWindow);
+        StoreCurrentWindowLayout(headSpriteWindow);
+        StoreCurrentWindowLayout(clothingSpriteWindow);
+        StoreCurrentWindowLayout(wearableSpriteListWindow);
+
+        lastGuiViewportSize = viewportSize;
+        lastGuiScale = guiScale;
+        draggedWindow = null;
+        resizedWindow = null;
+
+        RemoveWindows();
+        QueueGuiRecreate();
+        if (wearableEditorEnabled)
+        {
+            QueueWearableSpriteListRebuild();
+            QueueWearableEditorRebuild();
+        }
+    }
+
+    private static Point GetGuiViewportSize()
+    {
+        Rectangle canvasRect = GUI.Canvas.Rect;
+        return new Point(canvasRect.Width, canvasRect.Height);
+    }
+
+    private static Point GetGuiViewportNonScaledSize()
+    {
+        Point viewportSize = GetGuiViewportSize();
+        float scale = Math.Max(0.001f, GUI.Scale);
+        return new Point((int)(viewportSize.X / scale), (int)(viewportSize.Y / scale));
+    }
+
+    private static Point ToGuiScaleIndependentSize(Point size)
+    {
+        float scale = Math.Max(0.001f, GUI.Scale);
+        return new Point((int)(size.X / scale), (int)(size.Y / scale));
+    }
+
+    private static Point ClampWindowSize(Point requestedSize, Point minimumSize)
+    {
+        Point viewportSize = GetGuiViewportNonScaledSize();
+        int maxWidth = Math.Max(minimumSize.X, viewportSize.X);
+        int maxHeight = Math.Max(minimumSize.Y, viewportSize.Y);
+        return new Point(
+            Math.Min(Math.Max(requestedSize.X, minimumSize.X), maxWidth),
+            Math.Min(Math.Max(requestedSize.Y, minimumSize.Y), maxHeight));
+    }
+
+    private static Point ClampWindowOffset(Point requestedOffset, Point windowSize)
+    {
+        Point viewportSize = GetGuiViewportNonScaledSize();
+        int maxX = Math.Max(0, viewportSize.X - windowSize.X);
+        int maxY = Math.Max(0, viewportSize.Y - windowSize.Y);
+        return new Point(
+            MathHelper.Clamp(requestedOffset.X, 0, maxX),
+            MathHelper.Clamp(requestedOffset.Y, 0, maxY));
+    }
+
+    private void StoreCurrentWindowLayout(GUIFrame window)
+    {
+        if (window?.UserData is not string title) { return; }
+
+        float scale = Math.Max(0.001f, lastGuiScale > 0.0f ? lastGuiScale : GUI.Scale);
+        Point absoluteOffset = window.RectTransform.AbsoluteOffset;
+        Point screenOffset = window.RectTransform.ScreenSpaceOffset;
+        windowOffsets[title] = new Point(
+            (int)((absoluteOffset.X + screenOffset.X) / scale),
+            (int)((absoluteOffset.Y + screenOffset.Y) / scale));
     }
 
     private void CreateHeadWindow()
@@ -995,11 +1091,14 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         {
             Point absoluteOffset = draggedWindow.RectTransform.AbsoluteOffset;
             Point screenOffset = draggedWindow.RectTransform.ScreenSpaceOffset;
-            windowOffsets[title] = new Point(
+            Point storedSize = ToGuiScaleIndependentSize(draggedWindow.RectTransform.NonScaledSize);
+            Point storedOffset = new Point(
                 (int)((absoluteOffset.X + screenOffset.X) / GUI.Scale),
                 (int)((absoluteOffset.Y + screenOffset.Y) / GUI.Scale));
+            windowOffsets[title] = ClampWindowOffset(storedOffset, storedSize);
             draggedWindow.RectTransform.AbsoluteOffset += screenOffset;
             draggedWindow.RectTransform.ScreenSpaceOffset = Point.Zero;
+            draggedWindow.RectTransform.AbsoluteOffset = windowOffsets[title].Multiply(GUI.Scale);
             draggedWindow = null;
         }
     }
@@ -1010,7 +1109,7 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
         if (PlayerInput.PrimaryMouseButtonDown() && hoverWindow != null)
         {
             resizedWindow = hoverWindow;
-            resizedWindowStartSize = resizedWindow.RectTransform.NonScaledSize;
+            resizedWindowStartSize = ToGuiScaleIndependentSize(resizedWindow.RectTransform.NonScaledSize);
             resizedWindowStartMouse = PlayerInput.MousePosition.ToPoint();
         }
 
@@ -1023,16 +1122,20 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
             Point newSize = new Point(
                 Math.Max(minSize.X, resizedWindowStartSize.X + (int)(mouseDelta.X / GUI.Scale)),
                 Math.Max(minSize.Y, resizedWindowStartSize.Y + (int)(mouseDelta.Y / GUI.Scale)));
-            newSize.X = Math.Min(newSize.X, Math.Max(minSize.X, (int)(GameMain.GraphicsWidth / GUI.Scale)));
-            newSize.Y = Math.Min(newSize.Y, Math.Max(minSize.Y, (int)(GameMain.GraphicsHeight / GUI.Scale)));
-            resizedWindow.RectTransform.Resize(newSize, resizeChildren: true);
+            Point viewportSize = GetGuiViewportNonScaledSize();
+            newSize.X = Math.Min(newSize.X, Math.Max(minSize.X, viewportSize.X));
+            newSize.Y = Math.Min(newSize.Y, Math.Max(minSize.Y, viewportSize.Y));
+            resizedWindow.RectTransform.Resize(newSize.Multiply(GUI.Scale), resizeChildren: true);
             return true;
         }
 
         if (resizedWindow?.UserData is string resizedTitle)
         {
-            Point storedSize = resizedWindow.RectTransform.NonScaledSize;
-            windowSizes[resizedTitle] = storedSize;
+            Point storedSize = ToGuiScaleIndependentSize(resizedWindow.RectTransform.NonScaledSize);
+            Point minSize = windowMinimumSizes.TryGetValue(resizedTitle, out Point storedMinSize) ? storedMinSize : storedSize;
+            windowSizes[resizedTitle] = ClampWindowSize(storedSize, minSize);
+            Point storedOffset = windowOffsets.TryGetValue(resizedTitle, out Point savedOffset) ? savedOffset : Point.Zero;
+            windowOffsets[resizedTitle] = ClampWindowOffset(storedOffset, windowSizes[resizedTitle]);
             resizedWindow = null;
             QueueGuiRecreate();
             return true;
