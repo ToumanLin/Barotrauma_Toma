@@ -60,6 +60,12 @@ public sealed partial class CharacterViewerPlugin
             }
         }
         wearableSpriteListWindow?.AddToGUIUpdateList(ignoreChildren: false, order: 1);
+        if (panelsEnabled)
+        {
+            spritePreviewTooltip = null;
+            EnsureSpritePreviewTooltipOverlay();
+            spritePreviewTooltipOverlay?.AddToGUIUpdateList(ignoreChildren: false, order: 100);
+        }
     }
 
     private void OnCharacterEditorUpdated(float deltaTime)
@@ -129,6 +135,7 @@ public sealed partial class CharacterViewerPlugin
         RemoveWindow(wearableSpriteListWindow);
         wearableSpriteListWindow = null;
         wearableSpriteListBox = null;
+        RemoveSpritePreviewTooltipOverlay();
         draggedWindow = null;
         resizedWindow = null;
     }
@@ -157,6 +164,7 @@ public sealed partial class CharacterViewerPlugin
         spriteHorizontalScrollOffsets.Clear();
         spriteCanvasWidths.Clear();
         spriteCanvasHeights.Clear();
+        RemoveSpritePreviewTooltipOverlay();
         draggedWindow = null;
         resizedWindow = null;
     }
@@ -168,6 +176,31 @@ public sealed partial class CharacterViewerPlugin
         window.RectTransform.Parent = null;
     }
 
+    private void EnsureSpritePreviewTooltipOverlay()
+    {
+        if (spritePreviewTooltipOverlay != null) { return; }
+
+        spritePreviewTooltipOverlay = new GUICustomComponent(
+            new RectTransform(Vector2.One, GUI.Canvas),
+            onDraw: (spriteBatch, _) =>
+            {
+                if (string.IsNullOrEmpty(spritePreviewTooltip)) { return; }
+                GUIComponent.DrawToolTip(spriteBatch, spritePreviewTooltip, PlayerInput.MousePosition + new Vector2(GUI.IntScale(20), GUI.IntScale(20)));
+            })
+        {
+            CanBeFocused = false
+        };
+    }
+
+    private void RemoveSpritePreviewTooltipOverlay()
+    {
+        if (spritePreviewTooltipOverlay == null) { return; }
+        spritePreviewTooltipOverlay.RemoveFromGUIUpdateList();
+        spritePreviewTooltipOverlay.RectTransform.Parent = null;
+        spritePreviewTooltipOverlay = null;
+        spritePreviewTooltip = null;
+    }
+
     private GUILayoutGroup CreateFloatingWindow(string title, Point size, Point defaultOffset, out GUIFrame window)
     {
         FloatingWindowState state = GetFloatingWindowState(title, size, defaultOffset);
@@ -176,7 +209,8 @@ public sealed partial class CharacterViewerPlugin
         window = new GUIFrame(
             new RectTransform(state.SavedLogicalSize.Multiply(GUI.Scale), GUI.Canvas, Anchor.TopLeft, Pivot.TopLeft)
             {
-                AbsoluteOffset = state.SavedLogicalOffset.Multiply(GUI.Scale)
+                AbsoluteOffset = state.SavedLogicalOffset.Multiply(GUI.Scale),
+                MinSize = state.MinimumLogicalSize.Multiply(GUI.Scale)
             },
             style: "GUIFrame")
         {
@@ -406,7 +440,12 @@ public sealed partial class CharacterViewerPlugin
             Point viewportSize = GetGuiViewportNonScaledSize();
             newSize.X = Math.Min(newSize.X, Math.Max(minSize.X, viewportSize.X));
             newSize.Y = Math.Min(newSize.Y, Math.Max(minSize.Y, viewportSize.Y));
-            resizedWindow.RectTransform.Resize(newSize.Multiply(GUI.Scale), resizeChildren: true);
+            Point scaledMinSize = minSize.Multiply(GUI.Scale);
+            Point scaledNewSize = newSize.Multiply(GUI.Scale);
+            scaledNewSize.X = Math.Max(scaledMinSize.X, scaledNewSize.X);
+            scaledNewSize.Y = Math.Max(scaledMinSize.Y, scaledNewSize.Y);
+            resizedWindow.RectTransform.MinSize = scaledMinSize;
+            resizedWindow.RectTransform.Resize(scaledNewSize, resizeChildren: true);
             return true;
         }
 

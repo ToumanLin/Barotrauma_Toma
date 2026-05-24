@@ -96,9 +96,13 @@ public sealed partial class CharacterViewerPlugin : IAssemblyPlugin
 
     private GUIListBox clothingSpriteInfoList;
 
-    private GUIListBox wearableSpriteListBox;
+private GUIListBox wearableSpriteListBox;
 
-    private ItemPrefab selectedClothingPrefab;
+private GUICustomComponent spritePreviewTooltipOverlay;
+
+private string spritePreviewTooltip;
+
+private ItemPrefab selectedClothingPrefab;
 
     private string searchText = string.Empty;
 
