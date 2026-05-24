@@ -36,19 +36,19 @@ public sealed partial class CharacterViewerPlugin
 
     private void CreateBodySpriteWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Body Sprite", new Point(470, 380), new Point(300, 275), out bodySpriteWindow);
+        GUILayoutGroup content = CreateFloatingWindow(WindowTitleBodySprite, new Point(470, 380), new Point(300, 275), out bodySpriteWindow);
         bodySpriteInfoList = CreateSpritePreviewPanel(content, "Body Sprites", bodySpritePreviewZoom, value => bodySpritePreviewZoom = value);
     }
 
     private void CreateHeadSpriteWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Head Sprite", new Point(470, 380), new Point(300, 305), out headSpriteWindow);
+        GUILayoutGroup content = CreateFloatingWindow(WindowTitleHeadSprite, new Point(470, 380), new Point(300, 305), out headSpriteWindow);
         headSpriteInfoList = CreateSpritePreviewPanel(content, "Head Sprites", headSpritePreviewZoom, value => headSpritePreviewZoom = value);
     }
 
     private void CreateClothingSpriteWindow()
     {
-        GUILayoutGroup content = CreateFloatingWindow("Clothing Sprite", new Point(470, 400), new Point(300, 335), out clothingSpriteWindow);
+        GUILayoutGroup content = CreateFloatingWindow(WindowTitleClothingSprite, new Point(470, 400), new Point(300, 335), out clothingSpriteWindow);
         clothingSpriteInfoList = CreateSpritePreviewPanel(content, "Clothing Sprites", clothingSpritePreviewZoom, value => clothingSpritePreviewZoom = value);
     }
 
@@ -200,7 +200,7 @@ public sealed partial class CharacterViewerPlugin
             clothingSpriteInfoList,
             GetSelectedClothingSpriteEntries(),
             clothingSpritePreviewZoom,
-            selectedClothingPrefab == null ? "No clothing selected." : "Selected clothing has no visible sprites.");
+            selectedClothingPrefab == null ? NoClothingSelectedText : "Selected clothing has no visible sprites.");
     }
 
     private List<ViewerSpriteEntry> GetSelectedClothingSpriteEntries()
