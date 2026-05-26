@@ -111,11 +111,13 @@ internal readonly struct AppearancePayload
 
     public void ApplyTo(Character character)
     {
+        if (character == null) { return; }
+
         // Runtime head reloads can lose source-rect scaling used by rectangular custom head sprites.
         HeadSpriteGeometry headSpriteGeometry = HeadSpriteGeometry.Capture(character);
 
-        ApplyTo(character?.Info);
-        character?.ReloadHead(
+        ApplyTo(character.Info);
+        character.ReloadHead(
             hairIndex: HairIndex,
             beardIndex: BeardIndex,
             moustacheIndex: MoustacheIndex,
@@ -147,9 +149,11 @@ internal readonly struct AppearancePayload
             sprite = SpriteGeometry.Capture(head.Sprite);
             deformSprite = SpriteGeometry.Capture(head.DeformSprite?.Sprite);
             damagedSprite = SpriteGeometry.Capture(head.DamagedSprite);
-            conditionalSprites = head.ConditionalSprites
-                .Select(s => SpriteGeometry.Capture(s.ActiveSprite))
-                .ToList();
+            conditionalSprites = head.ConditionalSprites == null
+                ? new List<SpriteGeometry>()
+                : head.ConditionalSprites
+                    .Select(s => SpriteGeometry.Capture(GetActiveSprite(s)))
+                    .ToList();
         }
 
         public static HeadSpriteGeometry Capture(Character character)
@@ -167,11 +171,18 @@ internal readonly struct AppearancePayload
             deformSprite.Restore(head.DeformSprite?.Sprite);
             damagedSprite.Restore(head.DamagedSprite);
 
+            if (head.ConditionalSprites == null) { return; }
+
             int count = System.Math.Min(conditionalSprites.Count, head.ConditionalSprites.Count);
             for (int i = 0; i < count; i++)
             {
-                conditionalSprites[i].Restore(head.ConditionalSprites[i].ActiveSprite);
+                conditionalSprites[i].Restore(GetActiveSprite(head.ConditionalSprites[i]));
             }
+        }
+
+        private static Sprite GetActiveSprite(ConditionalSprite conditionalSprite)
+        {
+            return conditionalSprite?.Sprite ?? conditionalSprite?.DeformableSprite?.Sprite;
         }
     }
 

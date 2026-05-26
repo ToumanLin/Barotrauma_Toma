@@ -101,20 +101,29 @@ internal readonly struct AppearancePayload
         CharacterInfo info = character?.Info;
         if (info?.Head == null) { return this; }
 
-        ImmutableHashSet<Identifier> validatedTags = info.Prefab.Heads.Any(h => h.TagSet.SetEquals(Tags))
-            ? Tags
+        ImmutableHashSet<Identifier> requestedTags = Tags ?? ImmutableHashSet<Identifier>.Empty;
+        int requestedHairIndex = HairIndex;
+        int requestedBeardIndex = BeardIndex;
+        int requestedMoustacheIndex = MoustacheIndex;
+        int requestedFaceAttachmentIndex = FaceAttachmentIndex;
+        Color requestedSkinColor = SkinColor;
+        Color requestedHairColor = HairColor;
+        Color requestedFacialHairColor = FacialHairColor;
+
+        ImmutableHashSet<Identifier> validatedTags = info.Prefab.Heads.Any(h => h?.TagSet?.SetEquals(requestedTags) == true)
+            ? requestedTags
             : info.Head.Preset.TagSet;
 
         info.RecreateHead(
             validatedTags,
-            ClampAttachmentIndex(info, WearableType.Hair, HairIndex),
-            ClampAttachmentIndex(info, WearableType.Beard, BeardIndex),
-            ClampAttachmentIndex(info, WearableType.Moustache, MoustacheIndex),
-            ClampAttachmentIndex(info, WearableType.FaceAttachment, FaceAttachmentIndex));
+            ClampAttachmentIndex(info, WearableType.Hair, requestedHairIndex),
+            ClampAttachmentIndex(info, WearableType.Beard, requestedBeardIndex),
+            ClampAttachmentIndex(info, WearableType.Moustache, requestedMoustacheIndex),
+            ClampAttachmentIndex(info, WearableType.FaceAttachment, requestedFaceAttachmentIndex));
 
-        info.Head.SkinColor = ValidateColor(SkinColor, info.SkinColors.Select(c => c.Color), info.Head.SkinColor);
-        info.Head.HairColor = ValidateColor(HairColor, info.HairColors.Select(c => c.Color), info.Head.HairColor);
-        info.Head.FacialHairColor = ValidateColor(FacialHairColor, info.FacialHairColors.Select(c => c.Color), info.Head.FacialHairColor);
+        info.Head.SkinColor = ValidateColor(requestedSkinColor, info.SkinColors.Select(c => c.Color), info.Head.SkinColor);
+        info.Head.HairColor = ValidateColor(requestedHairColor, info.HairColors.Select(c => c.Color), info.Head.HairColor);
+        info.Head.FacialHairColor = ValidateColor(requestedFacialHairColor, info.FacialHairColors.Select(c => c.Color), info.Head.FacialHairColor);
         info.RefreshHead();
         character.LoadHeadAttachments();
 
