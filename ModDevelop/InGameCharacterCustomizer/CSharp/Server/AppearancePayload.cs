@@ -11,6 +11,7 @@ namespace InGameCharacterCustomizer;
 internal readonly struct AppearancePayload
 {
     public readonly ushort CharacterId;
+    public readonly string Name;
     public readonly ImmutableHashSet<Identifier> Tags;
     public readonly int HairIndex;
     public readonly int BeardIndex;
@@ -22,6 +23,7 @@ internal readonly struct AppearancePayload
 
     public AppearancePayload(
         ushort characterId,
+        string name,
         ImmutableHashSet<Identifier> tags,
         int hairIndex,
         int beardIndex,
@@ -32,6 +34,7 @@ internal readonly struct AppearancePayload
         Color facialHairColor)
     {
         CharacterId = characterId;
+        Name = name;
         Tags = tags;
         HairIndex = hairIndex;
         BeardIndex = beardIndex;
@@ -47,6 +50,7 @@ internal readonly struct AppearancePayload
         CharacterInfo.HeadInfo head = character.Info.Head;
         return new AppearancePayload(
             character.ID,
+            character.Info.Name,
             head.Preset.TagSet,
             head.HairIndex,
             head.BeardIndex,
@@ -60,6 +64,7 @@ internal readonly struct AppearancePayload
     public static AppearancePayload Read(IReadMessage message)
     {
         ushort characterId = message.ReadUInt16();
+        string name = message.ReadString();
         int tagCount = message.ReadByte();
         HashSet<Identifier> tags = new HashSet<Identifier>();
         for (int i = 0; i < tagCount; i++)
@@ -69,6 +74,7 @@ internal readonly struct AppearancePayload
 
         return new AppearancePayload(
             characterId,
+            name,
             tags.ToImmutableHashSet(),
             message.ReadByte(),
             message.ReadByte(),
@@ -82,6 +88,7 @@ internal readonly struct AppearancePayload
     public void Write(IWriteMessage message)
     {
         message.WriteUInt16(CharacterId);
+        message.WriteString(Name);
         message.WriteByte((byte)System.Math.Min(Tags.Count, byte.MaxValue));
         foreach (Identifier tag in Tags.Take(byte.MaxValue))
         {
@@ -94,6 +101,21 @@ internal readonly struct AppearancePayload
         message.WriteColorR8G8B8(SkinColor);
         message.WriteColorR8G8B8(HairColor);
         message.WriteColorR8G8B8(FacialHairColor);
+    }
+
+    public AppearancePayload WithName(string name)
+    {
+        return new AppearancePayload(
+            CharacterId,
+            name,
+            Tags,
+            HairIndex,
+            BeardIndex,
+            MoustacheIndex,
+            FaceAttachmentIndex,
+            SkinColor,
+            HairColor,
+            FacialHairColor);
     }
 
     public AppearancePayload ApplyValidatedTo(Character character)
@@ -114,6 +136,7 @@ internal readonly struct AppearancePayload
             ? requestedTags
             : info.Head.Preset.TagSet;
 
+        info.Rename(Name);
         info.RecreateHead(
             validatedTags,
             ClampAttachmentIndex(info, WearableType.Hair, requestedHairIndex),
@@ -134,6 +157,7 @@ internal readonly struct AppearancePayload
     {
         if (info?.Head == null) { return; }
 
+        info.Rename(Name);
         info.RecreateHead(Tags, HairIndex, BeardIndex, MoustacheIndex, FaceAttachmentIndex);
         info.Head.SkinColor = SkinColor;
         info.Head.HairColor = HairColor;

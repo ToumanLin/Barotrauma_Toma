@@ -4,12 +4,17 @@ using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Reflection;
 
 namespace InGameCharacterCustomizer;
 
 internal readonly struct AppearancePayload
 {
+    private static readonly FieldInfo TexturePathField = typeof(Limb).GetField("_texturePath", BindingFlags.Instance | BindingFlags.NonPublic);
+    private static readonly FieldInfo DamagedTexturePathField = typeof(Limb).GetField("_damagedTexturePath", BindingFlags.Instance | BindingFlags.NonPublic);
+
     public readonly ushort CharacterId;
+    public readonly string Name;
     public readonly ImmutableHashSet<Identifier> Tags;
     public readonly int HairIndex;
     public readonly int BeardIndex;
@@ -21,6 +26,7 @@ internal readonly struct AppearancePayload
 
     public AppearancePayload(
         ushort characterId,
+        string name,
         ImmutableHashSet<Identifier> tags,
         int hairIndex,
         int beardIndex,
@@ -31,6 +37,7 @@ internal readonly struct AppearancePayload
         Color facialHairColor)
     {
         CharacterId = characterId;
+        Name = name;
         Tags = tags;
         HairIndex = hairIndex;
         BeardIndex = beardIndex;
@@ -46,6 +53,7 @@ internal readonly struct AppearancePayload
         CharacterInfo.HeadInfo head = character.Info.Head;
         return new AppearancePayload(
             character.ID,
+            character.Info.Name,
             head.Preset.TagSet,
             head.HairIndex,
             head.BeardIndex,
@@ -59,6 +67,7 @@ internal readonly struct AppearancePayload
     public static AppearancePayload Read(IReadMessage message)
     {
         ushort characterId = message.ReadUInt16();
+        string name = message.ReadString();
         int tagCount = message.ReadByte();
         HashSet<Identifier> tags = new HashSet<Identifier>();
         for (int i = 0; i < tagCount; i++)
@@ -68,6 +77,7 @@ internal readonly struct AppearancePayload
 
         return new AppearancePayload(
             characterId,
+            name,
             tags.ToImmutableHashSet(),
             message.ReadByte(),
             message.ReadByte(),
@@ -81,6 +91,7 @@ internal readonly struct AppearancePayload
     public void Write(IWriteMessage message)
     {
         message.WriteUInt16(CharacterId);
+        message.WriteString(Name);
         message.WriteByte((byte)System.Math.Min(Tags.Count, byte.MaxValue));
         foreach (Identifier tag in Tags.Take(byte.MaxValue))
         {
@@ -99,6 +110,22 @@ internal readonly struct AppearancePayload
     {
         return new AppearancePayload(
             characterId,
+            Name,
+            Tags,
+            HairIndex,
+            BeardIndex,
+            MoustacheIndex,
+            FaceAttachmentIndex,
+            SkinColor,
+            HairColor,
+            FacialHairColor);
+    }
+
+    public AppearancePayload WithName(string name)
+    {
+        return new AppearancePayload(
+            CharacterId,
+            name,
             Tags,
             HairIndex,
             BeardIndex,
@@ -111,7 +138,7 @@ internal readonly struct AppearancePayload
 
     public void ApplyTo(Character character)
     {
-        if (character == null) { return; }
+        if (character?.Info?.Head == null || character.AnimController == null) { return; }
 
         // Runtime head reloads can lose source-rect scaling used by rectangular custom head sprites.
         HeadSpriteGeometry headSpriteGeometry = HeadSpriteGeometry.Capture(character);
@@ -122,14 +149,31 @@ internal readonly struct AppearancePayload
             beardIndex: BeardIndex,
             moustacheIndex: MoustacheIndex,
             faceAttachmentIndex: FaceAttachmentIndex);
+        foreach (Limb limb in character.AnimController.Limbs)
+        {
+            RecreateLimbSprites(limb);
+        }
+        foreach (WearableSprite wearable in character.AnimController.Limbs.SelectMany(l => l.WearingItems).Distinct())
+        {
+            wearable.Picker = null;
+            wearable.Picker = character;
+        }
 
         headSpriteGeometry?.Restore(character);
+    }
+
+    private static void RecreateLimbSprites(Limb limb)
+    {
+        TexturePathField?.SetValue(limb, null);
+        DamagedTexturePathField?.SetValue(limb, null);
+        limb.RecreateSprites();
     }
 
     public void ApplyTo(CharacterInfo info)
     {
         if (info?.Head == null) { return; }
 
+        info.Rename(Name);
         info.RecreateHead(Tags, HairIndex, BeardIndex, MoustacheIndex, FaceAttachmentIndex);
         info.Head.SkinColor = SkinColor;
         info.Head.HairColor = HairColor;

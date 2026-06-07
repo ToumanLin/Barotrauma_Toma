@@ -21,6 +21,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     private Harmony harmony;
     private CharacterInfo.AppearanceCustomizationMenu customizationMenu;
     private GUIFrame customizationRoot;
+    private GUITextBox characterNameBox;
     private AppearancePayload originalAppearance;
     private AppearancePayload savedAppearance;
     private Character customizedCharacter;
@@ -153,8 +154,27 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             font: GUIStyle.SubHeadingFont,
             textAlignment: Alignment.Center);
 
+        var nameRow = new GUILayoutGroup(new RectTransform(new Vector2(1.0f, 0.08f), layout.RectTransform), isHorizontal: true)
+        {
+            Stretch = true,
+            RelativeSpacing = 0.04f
+        };
+
+        new GUITextBlock(
+            new RectTransform(new Vector2(0.25f, 1.0f), nameRow.RectTransform),
+            "Name",
+            textAlignment: Alignment.CenterLeft);
+
+        characterNameBox = new GUITextBox(
+            new RectTransform(new Vector2(0.75f, 1.0f), nameRow.RectTransform),
+            character.Info.Name)
+        {
+            MaxTextLength = Client.MaxNameLength,
+            OverflowClip = true
+        };
+
         var menuHost = new UpdatingFrame(
-            new RectTransform(new Vector2(1.0f, 0.84f), layout.RectTransform),
+            new RectTransform(new Vector2(1.0f, 0.76f), layout.RectTransform),
             _ =>
             {
                 if (PlayerInput.KeyHit(Keys.Escape))
@@ -230,7 +250,10 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     {
         if (customizedCharacter?.Info?.Head == null) { return; }
 
-        AppearancePayload payload = AppearancePayload.FromCharacter(customizedCharacter);
+        string name = Client.SanitizeName(characterNameBox?.Text ?? customizedCharacter.Info.Name);
+        if (string.IsNullOrWhiteSpace(name)) { return; }
+
+        AppearancePayload payload = AppearancePayload.FromCharacter(customizedCharacter).WithName(name);
         payload.ApplyTo(customizedCharacter);
         savedAppearance = payload;
         savedCampaignRoundId = GetCampaignRoundId();
@@ -287,6 +310,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
         preferences.TagSet.Clear();
         preferences.TagSet.UnionWith(payload.Tags);
+        preferences.PlayerName = payload.Name;
         preferences.HairIndex = payload.HairIndex;
         preferences.BeardIndex = payload.BeardIndex;
         preferences.MoustacheIndex = payload.MoustacheIndex;
@@ -306,6 +330,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
         customizationMenu?.Dispose();
         customizationMenu = null;
+        characterNameBox = null;
         customizationRoot?.RemoveFromGUIUpdateList();
         if (customizationRoot != null)
         {

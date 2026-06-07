@@ -35,6 +35,15 @@ public sealed class InGameCharacterCustomizerServer : IAssemblyPlugin
         AppearancePayload requested = AppearancePayload.Read(message);
         if (requested.CharacterId != sender.Character.ID) { return; }
 
+        string requestedName = Client.SanitizeName(requested.Name ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(requestedName) ||
+            (requestedName != sender.Character.Info.Name &&
+             !GameMain.Server.IsNameValid(sender, requestedName, clientRenamingSelf: true)))
+        {
+            requestedName = sender.Character.Info.Name;
+        }
+
+        requested = requested.WithName(requestedName);
         AppearancePayload validated = requested.ApplyValidatedTo(sender.Character);
         if (sender.CharacterInfo != sender.Character.Info)
         {
