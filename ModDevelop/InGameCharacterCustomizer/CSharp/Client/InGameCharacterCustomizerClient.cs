@@ -22,9 +22,9 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     private CharacterInfo.AppearanceCustomizationMenu customizationMenu;
     private GUIFrame customizationRoot;
     private GUITextBox characterNameBox;
-    private AppearancePayload originalAppearance;
     private AppearancePayload savedAppearance;
     private Character customizedCharacter;
+    private CharacterInfo previewInfo;
     private int savedCampaignRoundId = -1;
     private ushort lastAppliedSavedAppearanceCharacterId;
     private bool hasSavedAppearance;
@@ -124,16 +124,18 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
         CloseCustomizationWindow(revert: false);
         customizedCharacter = character;
-        originalAppearance = AppearancePayload.FromCharacter(character);
+        AppearancePayload originalAppearance = AppearancePayload.FromCharacter(character);
+        previewInfo = CreatePreviewInfo(character, originalAppearance);
 
         customizationRoot = new GUIFrame(new RectTransform(Vector2.One, GUI.Canvas), style: null, color: Color.Black * 0.6f)
         {
             CanBeFocused = true
         };
 
-        var window = new GUIFrame(new RectTransform(new Vector2(0.72f, 0.72f), customizationRoot.RectTransform, Anchor.Center)
+        var window = new GUIFrame(new RectTransform(new Vector2(0.62f, 0.68f), customizationRoot.RectTransform, Anchor.Center)
         {
-            MinSize = new Point(560, 500)
+            MinSize = new Point(500, 460),
+            MaxSize = new Point(760, 680)
         }, style: "GUIFrame")
         {
             CanBeFocused = true
@@ -167,7 +169,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
         characterNameBox = new GUITextBox(
             new RectTransform(new Vector2(0.75f, 1.0f), nameRow.RectTransform),
-            character.Info.Name)
+            previewInfo.Name)
         {
             MaxTextLength = Client.MaxNameLength,
             OverflowClip = true
@@ -217,7 +219,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             }
         };
 
-        customizationMenu = new CharacterInfo.AppearanceCustomizationMenu(character.Info, menuHost);
+        customizationMenu = new CharacterInfo.AppearanceCustomizationMenu(previewInfo, menuHost);
     }
 
     private void UpdateInGameCustomization()
@@ -233,6 +235,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         GUIListBox headSelectionList = customizationMenu?.HeadSelectionList;
         if (headSelectionList is { Visible: true })
         {
+            FitPopupListToCanvas(headSelectionList);
             AddPopupListToGuiUpdateList(headSelectionList, order: 20);
         }
 
@@ -248,12 +251,12 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
     private void SaveAppearance()
     {
-        if (customizedCharacter?.Info?.Head == null) { return; }
+        if (customizedCharacter?.Info?.Head == null || previewInfo?.Head == null) { return; }
 
         string name = Client.SanitizeName(characterNameBox?.Text ?? customizedCharacter.Info.Name);
         if (string.IsNullOrWhiteSpace(name)) { return; }
 
-        AppearancePayload payload = AppearancePayload.FromCharacter(customizedCharacter).WithName(name);
+        AppearancePayload payload = AppearancePayload.FromCharacterInfo(previewInfo, customizedCharacter.ID).WithName(name);
         payload.ApplyTo(customizedCharacter);
         savedAppearance = payload;
         savedCampaignRoundId = GetCampaignRoundId();
@@ -325,7 +328,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     {
         if (revert)
         {
-            originalAppearance.ApplyTo(customizedCharacter);
+            previewInfo = null;
         }
 
         customizationMenu?.Dispose();
@@ -338,6 +341,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             customizationRoot = null;
         }
         customizedCharacter = null;
+        previewInfo = null;
     }
 
     private static void ReadServerAppearance(IReadMessage message)
@@ -367,6 +371,47 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             listBox.SetAsLastChild();
         }
         listBox.AddToGUIUpdateList(ignoreChildren: false, order: order);
+    }
+
+    private static CharacterInfo CreatePreviewInfo(Character character, AppearancePayload appearance)
+    {
+        CharacterInfo source = character.Info;
+        var preview = new CharacterInfo(source.SpeciesName, source.Name, source.OriginalName, source.Job);
+        appearance.ApplyTo(preview);
+        return preview;
+    }
+
+    private static void FitPopupListToCanvas(GUIListBox listBox)
+    {
+        if (listBox?.RectTransform == null || GUI.Canvas == null) { return; }
+
+        Rectangle canvas = GUI.Canvas.Rect;
+        Rectangle rect = listBox.Rect;
+        int maxHeight = Math.Max(120, canvas.Bottom - rect.Y - 12);
+        if (rect.Height > maxHeight)
+        {
+            listBox.RectTransform.Resize(new Point(rect.Width, maxHeight));
+            rect = listBox.Rect;
+        }
+
+        Point offset = listBox.RectTransform.AbsoluteOffset;
+        if (rect.Right > canvas.Right)
+        {
+            offset.X -= rect.Right - canvas.Right + 12;
+        }
+        if (rect.Bottom > canvas.Bottom)
+        {
+            offset.Y -= rect.Bottom - canvas.Bottom + 12;
+        }
+        if (rect.X < canvas.X)
+        {
+            offset.X += canvas.X - rect.X + 12;
+        }
+        if (rect.Y < canvas.Y)
+        {
+            offset.Y += canvas.Y - rect.Y + 12;
+        }
+        listBox.RectTransform.AbsoluteOffset = offset;
     }
 
     private sealed class UpdatingFrame : GUIFrame

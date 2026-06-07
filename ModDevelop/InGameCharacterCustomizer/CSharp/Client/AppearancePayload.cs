@@ -50,10 +50,15 @@ internal readonly struct AppearancePayload
 
     public static AppearancePayload FromCharacter(Character character)
     {
-        CharacterInfo.HeadInfo head = character.Info.Head;
+        return FromCharacterInfo(character.Info, character.ID);
+    }
+
+    public static AppearancePayload FromCharacterInfo(CharacterInfo info, ushort characterId)
+    {
+        CharacterInfo.HeadInfo head = info.Head;
         return new AppearancePayload(
-            character.ID,
-            character.Info.Name,
+            characterId,
+            info.Name,
             head.Preset.TagSet,
             head.HairIndex,
             head.BeardIndex,
