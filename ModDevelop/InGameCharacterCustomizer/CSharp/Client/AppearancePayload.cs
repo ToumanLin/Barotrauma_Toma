@@ -141,6 +141,31 @@ internal readonly struct AppearancePayload
             FacialHairColor);
     }
 
+    public AppearancePayload ValidateFor(CharacterInfo info)
+    {
+        if (info?.Head == null)
+        {
+            return this;
+        }
+
+        ImmutableHashSet<Identifier> requestedTags = Tags ?? ImmutableHashSet<Identifier>.Empty;
+        ImmutableHashSet<Identifier> validatedTags = info.Prefab.Heads.Any(h => h?.TagSet?.SetEquals(requestedTags) == true)
+            ? requestedTags
+            : info.Head.Preset.TagSet;
+
+        return new AppearancePayload(
+            CharacterId,
+            Name,
+            validatedTags,
+            ClampAttachmentIndex(info, WearableType.Hair, HairIndex),
+            ClampAttachmentIndex(info, WearableType.Beard, BeardIndex),
+            ClampAttachmentIndex(info, WearableType.Moustache, MoustacheIndex),
+            ClampAttachmentIndex(info, WearableType.FaceAttachment, FaceAttachmentIndex),
+            ValidateColor(SkinColor, info.SkinColors.Select(c => c.Color), info.Head.SkinColor),
+            ValidateColor(HairColor, info.HairColors.Select(c => c.Color), info.Head.HairColor),
+            ValidateColor(FacialHairColor, info.FacialHairColors.Select(c => c.Color), info.Head.FacialHairColor));
+    }
+
     public void ApplyTo(Character character)
     {
         if (character?.Info?.Head == null || character.AnimController == null) { return; }
@@ -148,12 +173,13 @@ internal readonly struct AppearancePayload
         // Runtime head reloads can lose source-rect scaling used by rectangular custom head sprites.
         HeadSpriteGeometry headSpriteGeometry = HeadSpriteGeometry.Capture(character);
 
-        ApplyTo(character.Info);
+        AppearancePayload validated = ValidateFor(character.Info);
+        validated.ApplyTo(character.Info);
         character.ReloadHead(
-            hairIndex: HairIndex,
-            beardIndex: BeardIndex,
-            moustacheIndex: MoustacheIndex,
-            faceAttachmentIndex: FaceAttachmentIndex);
+            hairIndex: validated.HairIndex,
+            beardIndex: validated.BeardIndex,
+            moustacheIndex: validated.MoustacheIndex,
+            faceAttachmentIndex: validated.FaceAttachmentIndex);
         foreach (Limb limb in character.AnimController.Limbs)
         {
             RecreateLimbSprites(limb);
@@ -184,6 +210,18 @@ internal readonly struct AppearancePayload
         info.Head.HairColor = HairColor;
         info.Head.FacialHairColor = FacialHairColor;
         info.RefreshHead();
+    }
+
+    private static int ClampAttachmentIndex(CharacterInfo info, WearableType wearableType, int index)
+    {
+        int count = info.CountValidAttachmentsOfType(wearableType);
+        if (count <= 0) { return 0; }
+        return System.Math.Max(0, System.Math.Min(index, count));
+    }
+
+    private static Color ValidateColor(Color color, IEnumerable<Color> supportedColors, Color fallback)
+    {
+        return supportedColors.Contains(color) ? color : fallback;
     }
 
     private sealed class HeadSpriteGeometry

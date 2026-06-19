@@ -47,7 +47,7 @@ public sealed class InGameCharacterCustomizerServer : IAssemblyPlugin
         AppearancePayload validated = requested.ApplyValidatedTo(sender.Character);
         if (sender.CharacterInfo != sender.Character.Info)
         {
-            validated.ApplyTo(sender.CharacterInfo);
+            validated.ValidateFor(sender.CharacterInfo).ApplyTo(sender.CharacterInfo);
         }
         PersistCampaignAppearance(sender, validated);
 
@@ -66,7 +66,7 @@ public sealed class InGameCharacterCustomizerServer : IAssemblyPlugin
         if (characterData.CharacterInfo != sender.Character.Info &&
             characterData.CharacterInfo != sender.CharacterInfo)
         {
-            validated.ApplyTo(characterData.CharacterInfo);
+            validated.ValidateFor(characterData.CharacterInfo).ApplyTo(characterData.CharacterInfo);
         }
 
         campaign.IncrementLastUpdateIdForFlag(MultiPlayerCampaign.NetFlags.CharacterInfo);

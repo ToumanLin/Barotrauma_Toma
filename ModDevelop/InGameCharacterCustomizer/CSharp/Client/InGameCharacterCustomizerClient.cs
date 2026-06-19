@@ -256,7 +256,9 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         string name = Client.SanitizeName(characterNameBox?.Text ?? customizedCharacter.Info.Name);
         if (string.IsNullOrWhiteSpace(name)) { return; }
 
-        AppearancePayload payload = AppearancePayload.FromCharacterInfo(previewInfo, customizedCharacter.ID).WithName(name);
+        AppearancePayload payload = AppearancePayload.FromCharacterInfo(previewInfo, customizedCharacter.ID)
+            .WithName(name)
+            .ValidateFor(customizedCharacter.Info);
         payload.ApplyTo(customizedCharacter);
         savedAppearance = payload;
         savedCampaignRoundId = GetCampaignRoundId();
@@ -283,7 +285,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             return;
         }
 
-        AppearancePayload payload = savedAppearance.WithCharacterId(controlled.ID);
+        AppearancePayload payload = savedAppearance.WithCharacterId(controlled.ID).ValidateFor(controlled.Info);
         payload.ApplyTo(controlled);
         savedAppearance = payload;
         savedCampaignRoundId = campaignRoundId;
@@ -348,6 +350,10 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     {
         AppearancePayload payload = AppearancePayload.Read(message);
         Character character = Character.CharacterList.FirstOrDefault(c => c.ID == payload.CharacterId);
+        if (character?.Info?.Head != null)
+        {
+            payload = payload.ValidateFor(character.Info);
+        }
         payload.ApplyTo(character);
         instance?.RememberServerAppearance(character, payload);
     }

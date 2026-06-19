@@ -123,34 +123,48 @@ internal readonly struct AppearancePayload
         CharacterInfo info = character?.Info;
         if (info?.Head == null) { return this; }
 
-        ImmutableHashSet<Identifier> requestedTags = Tags ?? ImmutableHashSet<Identifier>.Empty;
-        int requestedHairIndex = HairIndex;
-        int requestedBeardIndex = BeardIndex;
-        int requestedMoustacheIndex = MoustacheIndex;
-        int requestedFaceAttachmentIndex = FaceAttachmentIndex;
-        Color requestedSkinColor = SkinColor;
-        Color requestedHairColor = HairColor;
-        Color requestedFacialHairColor = FacialHairColor;
+        AppearancePayload validated = ValidateFor(info);
 
-        ImmutableHashSet<Identifier> validatedTags = info.Prefab.Heads.Any(h => h?.TagSet?.SetEquals(requestedTags) == true)
-            ? requestedTags
-            : info.Head.Preset.TagSet;
-
-        info.Rename(Name);
+        info.Rename(validated.Name);
         info.RecreateHead(
-            validatedTags,
-            ClampAttachmentIndex(info, WearableType.Hair, requestedHairIndex),
-            ClampAttachmentIndex(info, WearableType.Beard, requestedBeardIndex),
-            ClampAttachmentIndex(info, WearableType.Moustache, requestedMoustacheIndex),
-            ClampAttachmentIndex(info, WearableType.FaceAttachment, requestedFaceAttachmentIndex));
+            validated.Tags,
+            validated.HairIndex,
+            validated.BeardIndex,
+            validated.MoustacheIndex,
+            validated.FaceAttachmentIndex);
 
-        info.Head.SkinColor = ValidateColor(requestedSkinColor, info.SkinColors.Select(c => c.Color), info.Head.SkinColor);
-        info.Head.HairColor = ValidateColor(requestedHairColor, info.HairColors.Select(c => c.Color), info.Head.HairColor);
-        info.Head.FacialHairColor = ValidateColor(requestedFacialHairColor, info.FacialHairColors.Select(c => c.Color), info.Head.FacialHairColor);
+        info.Head.SkinColor = validated.SkinColor;
+        info.Head.HairColor = validated.HairColor;
+        info.Head.FacialHairColor = validated.FacialHairColor;
         info.RefreshHead();
         character.LoadHeadAttachments();
 
         return FromCharacter(character);
+    }
+
+    public AppearancePayload ValidateFor(CharacterInfo info)
+    {
+        if (info?.Head == null)
+        {
+            return this;
+        }
+
+        ImmutableHashSet<Identifier> requestedTags = Tags ?? ImmutableHashSet<Identifier>.Empty;
+        ImmutableHashSet<Identifier> validatedTags = info.Prefab.Heads.Any(h => h?.TagSet?.SetEquals(requestedTags) == true)
+            ? requestedTags
+            : info.Head.Preset.TagSet;
+
+        return new AppearancePayload(
+            CharacterId,
+            Name,
+            validatedTags,
+            ClampAttachmentIndex(info, WearableType.Hair, HairIndex),
+            ClampAttachmentIndex(info, WearableType.Beard, BeardIndex),
+            ClampAttachmentIndex(info, WearableType.Moustache, MoustacheIndex),
+            ClampAttachmentIndex(info, WearableType.FaceAttachment, FaceAttachmentIndex),
+            ValidateColor(SkinColor, info.SkinColors.Select(c => c.Color), info.Head.SkinColor),
+            ValidateColor(HairColor, info.HairColors.Select(c => c.Color), info.Head.HairColor),
+            ValidateColor(FacialHairColor, info.FacialHairColors.Select(c => c.Color), info.Head.FacialHairColor));
     }
 
     public void ApplyTo(CharacterInfo info)
