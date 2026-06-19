@@ -210,8 +210,6 @@ namespace Barotrauma.Items.Components
                 amountMultiplier = (int)itemCreationMultiplier.Value;
             }
 
-            ApplyDeconstructionStatusEffects(targetItem, ActionType.OnDeconstructed, 1f);
-
             if (targetItem.Prefab.RandomDeconstructionOutput)
             {
                 int amount = targetItem.Prefab.RandomDeconstructionOutputAmount;
@@ -345,6 +343,8 @@ namespace Barotrauma.Items.Components
 
             if (targetItem.AllowDeconstruct && allowRemove)
             {
+                ApplyDeconstructionStatusEffects(targetItem, ActionType.OnDeconstructed, 1f);
+
                 //drop all items that are inside the deconstructed item
                 foreach (ItemContainer ic in targetItem.GetComponents<ItemContainer>())
                 {
@@ -480,6 +480,7 @@ namespace Barotrauma.Items.Components
                         // Move items again since the status effect could have spawned additional items in the character inventory
                         MoveItemsFromCharacterToOutput();
 
+                        character.Kill(CauseOfDeathType.Unknown, causeOfDeathAffliction: null);
                         Entity.Spawner?.AddEntityToRemoveQueue(character);
                     }, 0.1f);
                 }

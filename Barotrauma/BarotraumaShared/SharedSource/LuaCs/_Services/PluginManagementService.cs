@@ -90,10 +90,13 @@ public class PluginManagementService : IAssemblyManagementService
     private ImmutableArray<MetadataReference> _baseMetadataReferences = ImmutableArray<MetadataReference>.Empty;
     private ImmutableArray<MetadataReference> _baseMetadataReferencesNonPublicized = ImmutableArray<MetadataReference>.Empty;
 
+    private Thread _backgroundGCCleanupThread = null;
+    private long _backgroundGCWatchdogTicks = 0;
+    
     private static readonly int
-        GC_COLLECT_WAIT_TIME = 1000,
+        GC_TASK_COMPLETION_TIMEOUT = 5000,
         GC_BACKGND_MAXITERATIONS = 2,
-        GC_BACKGND_INTERVAL_MILLIS = 500,
+        GC_BACKGND_INTERVAL_MILLIS = 200,
         GC_BACKGND_GENERATION_WAIT_MILLIS = 100;
     
     private IEnumerable<MetadataReference> BaseMetadataReferences
@@ -261,7 +264,10 @@ public class PluginManagementService : IAssemblyManagementService
         cmdService.RegisterCommand("plugin_forcerungc", "Forces the GC to run", cmds =>
         {
             _logger.LogMessage("Forcing GC run.");
-            RunGC(true);
+            Task.Factory.StartNew(async () =>
+            {
+                await RunGC(true, false);
+            });
         });
     }
 
@@ -910,78 +916,107 @@ public class PluginManagementService : IAssemblyManagementService
             _loadedNativeLibraries.Clear();
         }
 
-        RunGC(false);   // Immediate, Blocking GC
-        Task.Factory.StartNew(RunBackgroundGC); // Non-blocking background GC
+        Task.Factory.StartNew(async () =>
+        {
+            await RunGC(true, false);
+        }); 
         
         return results;
     }
-    
-    private async Task RunBackgroundGC()
+
+    private void SafeLogUnloadingPackages()
     {
-        // must be lock-free and thus cannot reference class members.
-        await Task.Delay(GC_BACKGND_INTERVAL_MILLIS);
-        GC.RegisterForFullGCNotification(1, 10);
-        for (int i = 0; i < GC_BACKGND_MAXITERATIONS; i++)
+        if (!_unloadingAssemblyLoaders.Any())
         {
-            int maxGen = GC.MaxGeneration;
-            for (int gcGen = 0; gcGen < maxGen; gcGen++)
-            {
-                GC.Collect(maxGen, GCCollectionMode.Forced, false, false); // mark objects, run finalizers, promote generation
-                GC.WaitForFullGCComplete(GC_COLLECT_WAIT_TIME);
-                GC.Collect(maxGen, GCCollectionMode.Forced, false, true); // free mem
-                GC.WaitForFullGCComplete(GC_COLLECT_WAIT_TIME);
-                await Task.Delay(GC_BACKGND_GENERATION_WAIT_MILLIS);
-            }
-            await Task.Delay(GC_BACKGND_INTERVAL_MILLIS);
+            return;
         }
-        GC.CancelFullGCNotification();
+            
+        StringBuilder sb = new StringBuilder();
+
+        sb.AppendLine("The following ContentPackages have not unloaded their assemblies:");
+            
+        foreach (var kvp in _unloadingAssemblyLoaders.ToImmutableArray())
+        {
+            sb.AppendLine($"- '{kvp.Value.Name}'");
+        }
+            
+        // Use DebugConsole in case logger is null by the time this executes.
+        if (_logger is null)
+        {
+            DebugConsole.Log(sb.ToString());
+        }
+        else
+        {
+            _logger.LogWarning(sb.ToString());
+        }
     }
 
-    private void RunGC(bool logResults)
+    private void GCCleanupTask(TaskCompletionSource<bool> completionSuccess)
     {
-        int maxGen = GC.MaxGeneration;
-        GC.RegisterForFullGCNotification(maxGen, 10);
-        for (int gcGen = 0; gcGen < maxGen; gcGen++)
+        GC.RegisterForFullGCNotification(1, 1);
+        try
         {
-            GC.Collect(maxGen, GCCollectionMode.Aggressive, true, true);
-            var confirmationToken = GC.WaitForFullGCComplete(GC_COLLECT_WAIT_TIME);
+            for (int iter = 0; iter < GC_BACKGND_MAXITERATIONS; iter++)
+            {
+                int maxGen = GC.MaxGeneration;
+                for (int currGen = 0; currGen < maxGen; currGen++)
+                {
+                    GC.Collect(currGen, GCCollectionMode.Forced, false, false); // marking pass
+                    GC.WaitForFullGCComplete(GC_BACKGND_GENERATION_WAIT_MILLIS);
+                    GC.Collect(currGen);    // generation cleanup
+                }
+                Thread.Sleep(GC_BACKGND_INTERVAL_MILLIS);
+            }
+            completionSuccess.SetResult(true);
+        }
+        catch (ThreadInterruptedException tie)
+        {
+            completionSuccess.SetResult(false);
+        }
+        catch (Exception e)
+        {
+            completionSuccess.SetException(e);
+        }
+        finally
+        {
+            GC.CancelFullGCNotification();
+        }
+    }
+
+    private async Task RunGC(bool logResults, bool runOnMainThread)
+    {
+        var gcCompletionSuccess = new TaskCompletionSource<bool>();
+        if (runOnMainThread)
+        {
+            GCCleanupTask(gcCompletionSuccess);
             if (logResults)
             {
-                _logger.LogWarning($"GC Pass # {gcGen} completed. Completion status: {confirmationToken.ToString()}");
+                SafeLogUnloadingPackages();
             }
+
+            return;
         }
-        GC.CancelFullGCNotification();
         
-        // Print still loaded assembly load ctx after giving some time
+        var gcThread = new Thread(() =>
+        {
+            GCCleanupTask(gcCompletionSuccess);
+        }) { IsBackground = true };
+        gcThread.Start();
+
+        try
+        {
+            await gcCompletionSuccess.Task.WaitAsync(TimeSpan.FromMilliseconds(GC_TASK_COMPLETION_TIMEOUT));
+        }
+        catch (TimeoutException te)
+        {
+            _logger.LogError($"{nameof(RunGC)}: The GC task thread has timed out.");  
+            gcThread.Interrupt();
+            gcThread.Join();
+        }
+
         if (logResults)
         {
-            CoroutineManager.Invoke(() =>
-            {
-                if (!_unloadingAssemblyLoaders.Any())
-                {
-                    return;
-                }
-            
-                StringBuilder sb = new StringBuilder();
-
-                sb.AppendLine("The following ContentPackages have not unloaded their assemblies:");
-            
-                foreach (var kvp in _unloadingAssemblyLoaders.ToImmutableArray())
-                {
-                    sb.AppendLine($"- '{kvp.Value.Name}'");
-                }
-            
-            
-                // Use DebugConsole in case logger is null by the time this executes.
-                if (_logger is null)
-                {
-                    DebugConsole.LogError(sb.ToString());
-                }
-                else
-                {
-                    _logger.LogWarning(sb.ToString());
-                }
-            }, GC.MaxGeneration * GC_COLLECT_WAIT_TIME/1000f);
+            SafeLogUnloadingPackages();
         }
     }
 
