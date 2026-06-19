@@ -424,7 +424,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             this.onUpdate = onUpdate;
         }
 
-        protected override void Update(float deltaTime)
+        public override void Update(float deltaTime)
         {
             base.Update(deltaTime);
             onUpdate?.Invoke(deltaTime);
