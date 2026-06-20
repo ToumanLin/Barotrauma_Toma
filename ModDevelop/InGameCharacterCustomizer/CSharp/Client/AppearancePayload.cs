@@ -175,11 +175,18 @@ internal readonly struct AppearancePayload
 
         AppearancePayload validated = ValidateFor(character.Info);
         validated.ApplyTo(character.Info);
-        character.ReloadHead(
-            hairIndex: validated.HairIndex,
-            beardIndex: validated.BeardIndex,
-            moustacheIndex: validated.MoustacheIndex,
-            faceAttachmentIndex: validated.FaceAttachmentIndex);
+        if (HasInvalidConditionalSprite(character.AnimController.GetLimb(LimbType.Head)))
+        {
+            character.LoadHeadAttachments();
+        }
+        else
+        {
+            character.ReloadHead(
+                hairIndex: validated.HairIndex,
+                beardIndex: validated.BeardIndex,
+                moustacheIndex: validated.MoustacheIndex,
+                faceAttachmentIndex: validated.FaceAttachmentIndex);
+        }
         foreach (Limb limb in character.AnimController.Limbs)
         {
             RecreateLimbSprites(limb);
@@ -195,9 +202,16 @@ internal readonly struct AppearancePayload
 
     private static void RecreateLimbSprites(Limb limb)
     {
+        if (limb == null || HasInvalidConditionalSprite(limb)) { return; }
+
         TexturePathField?.SetValue(limb, null);
         DamagedTexturePathField?.SetValue(limb, null);
         limb.RecreateSprites();
+    }
+
+    private static bool HasInvalidConditionalSprite(Limb limb)
+    {
+        return limb.ConditionalSprites?.Any(s => s?.Sprite == null && s?.DeformableSprite?.Sprite == null) == true;
     }
 
     public void ApplyTo(CharacterInfo info)
