@@ -1,5 +1,6 @@
 using Barotrauma;
 using Barotrauma.LuaCs;
+using Barotrauma.LuaCs.Events;
 using Barotrauma.Networking;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
@@ -11,10 +12,12 @@ using System.Reflection;
 
 namespace InGameCharacterCustomizer;
 
-public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
+public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin, IEventServerConnected
 {
     private const string ApplyMessage = "InGameCharacterCustomizer.Apply";
     private const string SyncMessage = "InGameCharacterCustomizer.Sync";
+    private const string PermissionRequestMessage = "InGameCharacterCustomizer.PermissionRequest";
+    private const string PermissionSyncMessage = "InGameCharacterCustomizer.PermissionSync";
     private const string CustomizeButtonUserData = "InGameCharacterCustomizer.CustomizeButton";
 
     private static InGameCharacterCustomizerClient instance;
@@ -32,6 +35,12 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     private int savedCampaignRoundId = -1;
     private ushort lastAppliedSavedAppearanceCharacterId;
     private bool hasSavedAppearance;
+    private CustomizePermissionMode permissionMode = CustomizePermissionMode.CurrentCrew;
+    private bool permissionReceived;
+    private bool permissionRequestSent;
+    private object permissionRequestClient;
+    private GUIFrame currentCrewFrame;
+    private readonly Dictionary<GUITextBlock, Point> originalNameSizes = new();
 
     public void PreInitPatching()
     {
@@ -46,6 +55,8 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         Patch("Barotrauma.GameScreen", "AddToGUIUpdateList", postfix: nameof(GameScreenAddToGUIUpdateListPostfix));
 
         LuaCsSetup.Instance.Networking.Receive(SyncMessage, ReadServerAppearance);
+        LuaCsSetup.Instance.Networking.Receive(PermissionSyncMessage, ReadServerPermission);
+        LuaCsSetup.Instance.EventService.Subscribe<IEventServerConnected>(this);
         LuaCsLogger.Log("InGameCharacterCustomizer client loaded.");
     }
 
@@ -56,6 +67,10 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     public void Dispose()
     {
         CloseCustomizationWindow(revert: false);
+        RemoveCustomizeButtons(currentCrewFrame);
+        currentCrewFrame = null;
+        originalNameSizes.Clear();
+        LuaCsSetup.Instance.EventService.Unsubscribe<IEventServerConnected>(this);
         harmony?.UnpatchSelf();
         harmony = null;
         if (instance == this)
@@ -63,6 +78,16 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             instance = null;
         }
         LuaCsLogger.Log("InGameCharacterCustomizer client disposed.");
+    }
+
+    public void OnServerConnected()
+    {
+        permissionMode = CustomizePermissionMode.CurrentCrew;
+        permissionReceived = false;
+        permissionRequestSent = false;
+        permissionRequestClient = null;
+        RefreshCustomizeButtons();
+        RequestPermissionFromServer();
     }
 
     private void Patch(string typeName, string methodName, string postfix)
@@ -93,10 +118,18 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     {
         if (crewFrame == null) { return; }
 
+        if (currentCrewFrame != crewFrame)
+        {
+            RemoveCustomizeButtons(currentCrewFrame);
+            currentCrewFrame = crewFrame;
+        }
+
+        if (permissionMode == CustomizePermissionMode.None) { return; }
+
         IEnumerable<GUIFrame> characterRows = crewFrame
             .GetAllChildren<GUIFrame>()
             .Where(frame => frame.UserData is Character);
-        if (GameMain.IsMultiplayer)
+        if (GameMain.IsMultiplayer && permissionMode == CustomizePermissionMode.CurrentCrew)
         {
             characterRows = characterRows.Where(frame => frame.UserData == Character.Controlled);
         }
@@ -116,6 +149,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         if (nameBlock == null || rowLayout.FindChild(CustomizeButtonUserData, recursive: true) != null) { return; }
 
         int originalNameWidth = nameBlock.RectTransform.NonScaledSize.X;
+        originalNameSizes[nameBlock] = nameBlock.RectTransform.NonScaledSize;
         int buttonWidth = Math.Min(GUI.IntScale(110f), Math.Max(GUI.IntScale(74f), originalNameWidth / 3));
         int remainingNameWidth = Math.Max(1, originalNameWidth - buttonWidth - rowLayout.AbsoluteSpacing);
         nameBlock.RectTransform.Resize(new Point(remainingNameWidth, nameBlock.RectTransform.NonScaledSize.Y));
@@ -139,9 +173,37 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         rowLayout.Recalculate();
     }
 
+    private void RemoveCustomizeButtons(GUIFrame crewFrame)
+    {
+        if (crewFrame == null) { return; }
+
+        foreach (GUIFrame characterRow in crewFrame
+            .GetAllChildren<GUIFrame>()
+            .Where(frame => frame.UserData is Character))
+        {
+            GUILayoutGroup rowLayout = characterRow
+                .GetAllChildren<GUILayoutGroup>()
+                .FirstOrDefault(group => group.Parent == characterRow);
+            if (rowLayout == null) { continue; }
+
+            GUIComponent customizeButton = rowLayout.FindChild(CustomizeButtonUserData, recursive: true);
+            if (customizeButton != null)
+            {
+                rowLayout.RemoveChild(customizeButton);
+            }
+
+            if (rowLayout.GetChild(1) is GUITextBlock nameBlock &&
+                originalNameSizes.Remove(nameBlock, out Point originalSize))
+            {
+                nameBlock.RectTransform.Resize(originalSize);
+            }
+            rowLayout.Recalculate();
+        }
+    }
+
     private void OpenCustomizationWindow(Character character)
     {
-        if (character?.Info?.Head == null) { return; }
+        if (!CanCustomizeLocally(character)) { return; }
 
         CloseCustomizationWindow(revert: false);
         customizedCharacter = character;
@@ -284,8 +346,42 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
     private void UpdateInGameCustomization()
     {
+        EnsurePermissionRequest();
         TryApplySavedAppearanceToControlledCharacter();
         AddCustomizerToGuiUpdateList();
+    }
+
+    private void EnsurePermissionRequest()
+    {
+        if (!GameMain.IsMultiplayer || GameMain.Client == null)
+        {
+            permissionRequestClient = null;
+            permissionRequestSent = false;
+            permissionReceived = false;
+            permissionMode = CustomizePermissionMode.CurrentCrew;
+            return;
+        }
+
+        if (!ReferenceEquals(permissionRequestClient, GameMain.Client))
+        {
+            permissionRequestClient = GameMain.Client;
+            permissionRequestSent = false;
+            permissionReceived = false;
+            permissionMode = CustomizePermissionMode.CurrentCrew;
+            RefreshCustomizeButtons();
+        }
+
+        RequestPermissionFromServer();
+    }
+
+    private void RequestPermissionFromServer()
+    {
+        if (!GameMain.IsMultiplayer || GameMain.Client == null || permissionRequestSent) { return; }
+
+        IWriteMessage message = LuaCsSetup.Instance.Networking.Start(PermissionRequestMessage);
+        LuaCsSetup.Instance.Networking.SendToServer(message, DeliveryMethod.Reliable);
+        permissionRequestClient = GameMain.Client;
+        permissionRequestSent = true;
     }
 
     private void AddCustomizerToGuiUpdateList()
@@ -311,7 +407,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
     private void SaveAppearance()
     {
-        if (customizedCharacter?.Info?.Head == null || previewInfo?.Head == null) { return; }
+        if (!CanCustomizeLocally(customizedCharacter) || previewInfo?.Head == null) { return; }
 
         string name = Client.SanitizeName(characterNameBox?.Text ?? customizedCharacter.Info.Name);
         if (string.IsNullOrWhiteSpace(name)) { return; }
@@ -336,6 +432,8 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
     private void TryApplySavedAppearanceToControlledCharacter()
     {
+        if (GameMain.IsMultiplayer && permissionMode == CustomizePermissionMode.None) { return; }
+
         Character controlled = Character.Controlled;
         int campaignRoundId = GetCampaignRoundId();
         if (!hasSavedAppearance ||
@@ -495,6 +593,48 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         }
         payload.ApplyTo(character);
         instance?.RememberServerAppearance(character, payload);
+    }
+
+    private static void ReadServerPermission(IReadMessage message)
+    {
+        byte rawMode = message.ReadByte();
+        if (!Enum.IsDefined(typeof(CustomizePermissionMode), rawMode)) { return; }
+        instance?.ApplyPermissionMode((CustomizePermissionMode)rawMode);
+    }
+
+    private void ApplyPermissionMode(CustomizePermissionMode mode)
+    {
+        bool changed = !permissionReceived || permissionMode != mode;
+        permissionReceived = true;
+        permissionMode = mode;
+        if (!changed) { return; }
+
+        if (customizedCharacter != null && !CanCustomizeLocally(customizedCharacter))
+        {
+            CloseCustomizationWindow(revert: true);
+        }
+        RefreshCustomizeButtons();
+    }
+
+    private bool CanCustomizeLocally(Character character)
+    {
+        if (character?.Info?.Head == null || character.IsDead || permissionMode == CustomizePermissionMode.None)
+        {
+            return false;
+        }
+
+        if (!GameMain.IsMultiplayer) { return true; }
+
+        return permissionMode == CustomizePermissionMode.AnyCrew || character == Character.Controlled;
+    }
+
+    private void RefreshCustomizeButtons()
+    {
+        if (currentCrewFrame == null) { return; }
+
+        GUIFrame frame = currentCrewFrame;
+        RemoveCustomizeButtons(frame);
+        TryAddCustomizeButton(frame);
     }
 
     private void RememberServerAppearance(Character character, AppearancePayload payload)

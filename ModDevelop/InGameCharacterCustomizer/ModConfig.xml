@@ -7,5 +7,6 @@
   <Assembly Folder="%ModDir%/CSharp/Server"
             IsScript="true"
             Target="Server"
-            FriendlyName="InGameCharacterCustomizer.Server" />
+            FriendlyName="InGameCharacterCustomizer.Server"
+            UseInternalAccessName="true" />
 </ModConfig>
