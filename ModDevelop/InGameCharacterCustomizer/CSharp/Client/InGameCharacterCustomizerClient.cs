@@ -5,6 +5,7 @@ using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -21,7 +22,10 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
     private Harmony harmony;
     private CharacterInfo.AppearanceCustomizationMenu customizationMenu;
     private GUIFrame customizationRoot;
+    private GUIComponent customizationMenuHost;
     private GUITextBox characterNameBox;
+    private SimpleColorPicker colorPicker;
+    private readonly Color?[] colorSwatches = new Color?[7];
     private AppearancePayload savedAppearance;
     private Character customizedCharacter;
     private CharacterInfo previewInfo;
@@ -38,7 +42,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         instance = this;
         harmony = new Harmony("InGameCharacterCustomizer.Client");
 
-        Patch("Barotrauma.CharacterInfo", "CreateInfoFrame", postfix: nameof(CreateInfoFramePostfix));
+        Patch("Barotrauma.TabMenu", "CreateCrewListFrame", postfix: nameof(CreateCrewListFramePostfix));
         Patch("Barotrauma.GameScreen", "AddToGUIUpdateList", postfix: nameof(GameScreenAddToGUIUpdateListPostfix));
 
         LuaCsSetup.Instance.Networking.Receive(SyncMessage, ReadServerAppearance);
@@ -75,9 +79,9 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         harmony.Patch(target, postfix: new HarmonyMethod(postfixMethod));
     }
 
-    private static void CreateInfoFramePostfix(CharacterInfo __instance, GUIComponent __result)
+    private static void CreateCrewListFramePostfix(GUIFrame crewFrame)
     {
-        instance?.TryAddCustomizeButton(__instance, __result);
+        instance?.TryAddCustomizeButton(crewFrame);
     }
 
     private static void GameScreenAddToGUIUpdateListPostfix()
@@ -85,37 +89,54 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         instance?.UpdateInGameCustomization();
     }
 
-    private void TryAddCustomizeButton(CharacterInfo info, GUIComponent infoFrame)
+    private void TryAddCustomizeButton(GUIFrame crewFrame)
     {
-        if (infoFrame == null || info?.Character == null) { return; }
-        if (!GameSession.IsTabMenuOpen || TabMenu.SelectedTab != TabMenu.InfoFrameTab.Crew) { return; }
-        if (info.Character != Character.Controlled) { return; }
-        if (infoFrame.FindChild(CustomizeButtonUserData, recursive: true) != null) { return; }
+        if (crewFrame == null) { return; }
 
-        GUIComponent portrait = infoFrame.GetAllChildren<GUICustomComponent>().FirstOrDefault();
-        if (portrait == null) { return; }
+        IEnumerable<GUIFrame> characterRows = crewFrame
+            .GetAllChildren<GUIFrame>()
+            .Where(frame => frame.UserData is Character);
+        if (GameMain.IsMultiplayer)
+        {
+            characterRows = characterRows.Where(frame => frame.UserData == Character.Controlled);
+        }
+
+        foreach (GUIFrame characterRow in characterRows)
+        {
+            AddCustomizeButtonToRow(characterRow, (Character)characterRow.UserData);
+        }
+    }
+
+    private void AddCustomizeButtonToRow(GUIFrame characterRow, Character character)
+    {
+        GUILayoutGroup rowLayout = characterRow?
+            .GetAllChildren<GUILayoutGroup>()
+            .FirstOrDefault(group => group.Parent == characterRow);
+        GUITextBlock nameBlock = rowLayout?.GetChild(1) as GUITextBlock;
+        if (nameBlock == null || rowLayout.FindChild(CustomizeButtonUserData, recursive: true) != null) { return; }
+
+        int originalNameWidth = nameBlock.RectTransform.NonScaledSize.X;
+        int buttonWidth = Math.Min(GUI.IntScale(110f), Math.Max(GUI.IntScale(74f), originalNameWidth / 3));
+        int remainingNameWidth = Math.Max(1, originalNameWidth - buttonWidth - rowLayout.AbsoluteSpacing);
+        nameBlock.RectTransform.Resize(new Point(remainingNameWidth, nameBlock.RectTransform.NonScaledSize.Y));
 
         var button = new GUIButton(
-            new RectTransform(new Vector2(0.45f, 0.24f), portrait.RectTransform, Anchor.TopLeft, scaleBasis: ScaleBasis.BothWidth)
-            {
-                MinSize = new Point(74, 20),
-                MaxSize = new Point(118, 28),
-                AbsoluteOffset = new Point(2, 2)
-            },
+            new RectTransform(new Point(buttonWidth, rowLayout.Rect.Height), rowLayout.RectTransform, Anchor.Center, isFixedSize: true),
             "Customize",
             style: "GUIButtonSmall")
         {
             UserData = CustomizeButtonUserData,
-            IgnoreLayoutGroups = true,
             ToolTip = "Customize character",
             OnClicked = (_, _) =>
             {
-                OpenCustomizationWindow(info.Character);
+                OpenCustomizationWindow(character);
                 return true;
             }
         };
 
+        button.RectTransform.RepositionChildInHierarchy(1);
         button.TextBlock.AutoScaleHorizontal = true;
+        rowLayout.Recalculate();
     }
 
     private void OpenCustomizationWindow(Character character)
@@ -132,16 +153,15 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             CanBeFocused = true
         };
 
-        var window = new GUIFrame(new RectTransform(new Vector2(0.62f, 0.68f), customizationRoot.RectTransform, Anchor.Center)
+        var window = new GUIFrame(new RectTransform(new Vector2(0.45f, 0.60f), customizationRoot.RectTransform, Anchor.Center)
         {
-            MinSize = new Point(500, 460),
-            MaxSize = new Point(760, 680)
+            MinSize = new Point(333, 444)
         }, style: "GUIFrame")
         {
             CanBeFocused = true
         };
 
-        var layout = new GUILayoutGroup(new RectTransform(new Vector2(0.94f, 0.86f), window.RectTransform, Anchor.TopCenter)
+        var layout = new GUILayoutGroup(new RectTransform(new Vector2(0.94f, 0.92f), window.RectTransform, Anchor.TopCenter)
         {
             RelativeOffset = new Vector2(0.0f, 0.04f)
         })
@@ -175,17 +195,56 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             OverflowClip = true
         };
 
-        var menuHost = new UpdatingFrame(
-            new RectTransform(new Vector2(1.0f, 0.76f), layout.RectTransform),
+        var traitRow = new GUILayoutGroup(new RectTransform(new Vector2(1.0f, 0.08f), layout.RectTransform), isHorizontal: true)
+        {
+            Stretch = true,
+            RelativeSpacing = 0.04f
+        };
+
+        new GUITextBlock(
+            new RectTransform(new Vector2(0.25f, 1.0f), traitRow.RectTransform),
+            TextManager.Get("PersonalityTrait").Fallback("Trait"),
+            textAlignment: Alignment.CenterLeft);
+
+        var traitDropdown = new GUIDropDown(new RectTransform(new Vector2(0.75f, 1.0f), traitRow.RectTransform), elementCount: 6);
+        Identifier selectedTrait = AppearancePayload.GetPersonalityTraitIdentifier(previewInfo);
+        foreach ((Identifier identifier, LocalizedString displayName) in AppearancePayload.GetPersonalityTraits().OrderBy(option => option.DisplayName.Value))
+        {
+            traitDropdown.AddItem(displayName, identifier);
+        }
+        traitDropdown.OnSelected = (_, data) =>
+        {
+            if (data is Identifier identifier)
+            {
+                AppearancePayload.SetPersonalityTrait(previewInfo, identifier);
+            }
+            return true;
+        };
+        GUIComponent selectedTraitItem = traitDropdown.ListBox.Content.FindChild(component => component.UserData is Identifier identifier && identifier == selectedTrait);
+        if (selectedTraitItem != null)
+        {
+            traitDropdown.Select(traitDropdown.ListBox.Content.GetChildIndex(selectedTraitItem));
+        }
+
+        customizationMenuHost = new UpdatingFrame(
+            new RectTransform(new Vector2(1.0f, 1.0f), layout.RectTransform),
             _ =>
             {
                 if (PlayerInput.KeyHit(Keys.Escape))
                 {
-                    CloseCustomizationWindow(revert: true);
+                    if (colorPicker != null)
+                    {
+                        CloseColorPicker();
+                    }
+                    else
+                    {
+                        CloseCustomizationWindow(revert: true);
+                    }
                     return;
                 }
 
                 customizationMenu?.Update();
+                EnsureCustomColorButtons();
             },
             style: "GUIFrameListBox");
 
@@ -194,7 +253,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             RelativeOffset = new Vector2(0.0f, -0.04f),
             MinSize = new Point(280, 32),
             MaxSize = new Point(520, 42)
-        }, isHorizontal: true, childAnchor: Anchor.Center)
+        }, isHorizontal: true, childAnchor: Anchor.CenterLeft)
         {
             Stretch = true,
             RelativeSpacing = 0.06f,
@@ -219,7 +278,8 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             }
         };
 
-        customizationMenu = new CharacterInfo.AppearanceCustomizationMenu(previewInfo, menuHost);
+        customizationMenu = new CharacterInfo.AppearanceCustomizationMenu(previewInfo, customizationMenuHost);
+        EnsureCustomColorButtons();
     }
 
     private void UpdateInGameCustomization()
@@ -260,11 +320,14 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
             .WithName(name)
             .ValidateFor(customizedCharacter.Info);
         payload.ApplyTo(customizedCharacter);
-        savedAppearance = payload;
-        savedCampaignRoundId = GetCampaignRoundId();
-        lastAppliedSavedAppearanceCharacterId = payload.CharacterId;
-        hasSavedAppearance = true;
-        SaveLocalPreferences(payload);
+        if (GameMain.Client != null && customizedCharacter == Character.Controlled)
+        {
+            savedAppearance = payload;
+            savedCampaignRoundId = GetCampaignRoundId();
+            lastAppliedSavedAppearanceCharacterId = payload.CharacterId;
+            hasSavedAppearance = true;
+            SaveLocalPreferences(payload);
+        }
 
         SendAppearanceToServer(payload);
 
@@ -328,6 +391,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
     private void CloseCustomizationWindow(bool revert)
     {
+        CloseColorPicker();
         if (revert)
         {
             previewInfo = null;
@@ -335,6 +399,7 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
 
         customizationMenu?.Dispose();
         customizationMenu = null;
+        customizationMenuHost = null;
         characterNameBox = null;
         customizationRoot?.RemoveFromGUIUpdateList();
         if (customizationRoot != null)
@@ -344,6 +409,80 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin
         }
         customizedCharacter = null;
         previewInfo = null;
+    }
+
+    private void EnsureCustomColorButtons()
+    {
+        if (customizationMenuHost == null || previewInfo?.Head == null) { return; }
+
+        var colorTargets = new List<(LocalizedString Label, Func<Color> Getter, Action<Color> Setter)>();
+        if (previewInfo.CountValidAttachmentsOfType(WearableType.Hair) > 0)
+        {
+            colorTargets.Add((TextManager.Get($"Customization.{nameof(previewInfo.Head.HairColor)}"),
+                () => previewInfo.Head.HairColor,
+                color => previewInfo.Head.HairColor = color));
+        }
+        if (previewInfo.CountValidAttachmentsOfType(WearableType.Moustache) > 0 ||
+            previewInfo.CountValidAttachmentsOfType(WearableType.Beard) > 0)
+        {
+            colorTargets.Add((TextManager.Get($"Customization.{nameof(previewInfo.Head.FacialHairColor)}"),
+                () => previewInfo.Head.FacialHairColor,
+                color => previewInfo.Head.FacialHairColor = color));
+        }
+        colorTargets.Add((TextManager.Get($"Customization.{nameof(previewInfo.Head.SkinColor)}"),
+            () => previewInfo.Head.SkinColor,
+            color => previewInfo.Head.SkinColor = color));
+
+        GUIDropDown[] selectors = customizationMenuHost.GetAllChildren<GUIDropDown>().ToArray();
+        int count = Math.Min(selectors.Length, colorTargets.Count);
+        for (int i = 0; i < count; i++)
+        {
+            int targetIndex = i;
+            GUIDropDown selector = selectors[i];
+            GUIComponent row = selector.Parent;
+            string userData = $"InGameCharacterCustomizer.ColorPicker.{i}";
+            if (row == null || row.FindChild(userData, recursive: true) != null) { continue; }
+
+            selector.RectTransform.Resize(new Vector2(0.55f, 1f));
+            selector.RectTransform.SetPosition(Anchor.Center);
+            var button = new GUIButton(new RectTransform(new Vector2(0.20f, 1f), row.RectTransform, Anchor.CenterRight), "Custom", style: "GUIButtonSmall")
+            {
+                UserData = userData,
+                ToolTip = "Open color picker",
+                OnClicked = (_, _) =>
+                {
+                    OpenColorPicker(colorTargets[targetIndex]);
+                    return true;
+                }
+            };
+            button.TextBlock.AutoScaleHorizontal = true;
+        }
+    }
+
+    private void OpenColorPicker((LocalizedString Label, Func<Color> Getter, Action<Color> Setter) target)
+    {
+        CloseColorPicker();
+        colorPicker = new SimpleColorPicker(
+            customizationRoot,
+            target.Label,
+            target.Getter(),
+            colorSwatches,
+            color =>
+            {
+                target.Setter(color);
+                previewInfo.RefreshHead();
+            },
+            closedPicker =>
+            {
+                if (colorPicker == closedPicker) { colorPicker = null; }
+            });
+    }
+
+    private void CloseColorPicker()
+    {
+        SimpleColorPicker picker = colorPicker;
+        colorPicker = null;
+        picker?.Dispose();
     }
 
     private static void ReadServerAppearance(IReadMessage message)
