@@ -513,32 +513,32 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin, IEventSer
     {
         if (customizationMenuHost == null || previewInfo?.Head == null) { return; }
 
-        var colorTargets = new List<(LocalizedString Label, Func<Color> Getter, Action<Color> Setter)>();
+        var colorTargets = new List<(string Key, LocalizedString Label, Func<Color> Getter, Action<Color> Setter)>();
         if (previewInfo.CountValidAttachmentsOfType(WearableType.Hair) > 0)
         {
-            colorTargets.Add((TextManager.Get($"Customization.{nameof(previewInfo.Head.HairColor)}"),
+            colorTargets.Add((nameof(previewInfo.Head.HairColor), TextManager.Get($"Customization.{nameof(previewInfo.Head.HairColor)}"),
                 () => previewInfo.Head.HairColor,
                 color => previewInfo.Head.HairColor = color));
         }
         if (previewInfo.CountValidAttachmentsOfType(WearableType.Moustache) > 0 ||
             previewInfo.CountValidAttachmentsOfType(WearableType.Beard) > 0)
         {
-            colorTargets.Add((TextManager.Get($"Customization.{nameof(previewInfo.Head.FacialHairColor)}"),
+            colorTargets.Add((nameof(previewInfo.Head.FacialHairColor), TextManager.Get($"Customization.{nameof(previewInfo.Head.FacialHairColor)}"),
                 () => previewInfo.Head.FacialHairColor,
                 color => previewInfo.Head.FacialHairColor = color));
         }
-        colorTargets.Add((TextManager.Get($"Customization.{nameof(previewInfo.Head.SkinColor)}"),
+        colorTargets.Add((nameof(previewInfo.Head.SkinColor), TextManager.Get($"Customization.{nameof(previewInfo.Head.SkinColor)}"),
             () => previewInfo.Head.SkinColor,
             color => previewInfo.Head.SkinColor = color));
 
+        // Adding picker buttons changes the GUI hierarchy, so enumerate a snapshot.
         GUIDropDown[] selectors = customizationMenuHost.GetAllChildren<GUIDropDown>().ToArray();
-        int count = Math.Min(selectors.Length, colorTargets.Count);
-        for (int i = 0; i < count; i++)
+        foreach (GUIDropDown selector in selectors)
         {
-            int targetIndex = i;
-            GUIDropDown selector = selectors[i];
+            if (!TryFindColorTarget(selector, colorTargets, out var target)) { continue; }
+
             GUIComponent row = selector.Parent;
-            string userData = $"InGameCharacterCustomizer.ColorPicker.{i}";
+            string userData = $"InGameCharacterCustomizer.ColorPicker.{target.Key}";
             if (row == null || row.FindChild(userData, recursive: true) != null) { continue; }
 
             selector.RectTransform.Resize(new Vector2(0.55f, 1f));
@@ -549,12 +549,42 @@ public sealed class InGameCharacterCustomizerClient : IAssemblyPlugin, IEventSer
                 ToolTip = "Open color picker",
                 OnClicked = (_, _) =>
                 {
-                    OpenColorPicker(colorTargets[targetIndex]);
+                    OpenColorPicker((target.Label, target.Getter, target.Setter));
                     return true;
                 }
             };
             button.TextBlock.AutoScaleHorizontal = true;
         }
+    }
+
+    private static bool TryFindColorTarget(
+        GUIDropDown selector,
+        IEnumerable<(string Key, LocalizedString Label, Func<Color> Getter, Action<Color> Setter)> targets,
+        out (string Key, LocalizedString Label, Func<Color> Getter, Action<Color> Setter) target)
+    {
+        target = default;
+        if (selector?.Parent == null) { return false; }
+
+        GUIComponent current = selector.Parent;
+        while (current?.Parent != null)
+        {
+            GUIComponent category = current.Parent;
+            if (category is GUILayoutGroup &&
+                category.Children.OfType<GUITextBlock>().Any(label => targets.Any(candidate => candidate.Label == label.Text)))
+            {
+                GUITextBlock label = category.Children.OfType<GUITextBlock>()
+                    .FirstOrDefault(textBlock => targets.Any(candidate => candidate.Label == textBlock.Text));
+                if (label != null)
+                {
+                    target = targets.First(candidate => candidate.Label == label.Text);
+                    return true;
+                }
+            }
+
+            current = category;
+        }
+
+        return false;
     }
 
     private void OpenColorPicker((LocalizedString Label, Func<Color> Getter, Action<Color> Setter) target)
